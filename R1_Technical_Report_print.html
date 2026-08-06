@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reinforcement Learning for a Bipedal Humanoid in a Robotic Cell</title>
+<style>
+  :root {
+    --ink: #17171a;
+    --muted: #4c4c55;
+    --faint: #7b7b85;
+    --line: #d9d9e0;
+    --line2: #ecECf1;
+    --accent: #b23a12;      /* KUKA-cell orange, deepened for print legibility */
+    --accent-soft: #f6e9e2;
+    --good: #146b41;
+    --good-soft: #e4f1ea;
+    --bad: #9e2f26;
+    --bad-soft: #f5e5e3;
+    --serif: Georgia, "Times New Roman", "Cambria", serif;
+    --sans: "Helvetica Neue", Arial, "Segoe UI", system-ui, sans-serif;
+    --mono: "SF Mono", "Consolas", "Menlo", monospace;
+  }
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { margin: 0; color: var(--ink); background: #fff; font-family: var(--serif);
+         font-size: 10.4pt; line-height: 1.5; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 0 24px 40px; }
+  .col { max-width: 640px; }
+  p { margin: 0 0 9px; text-align: justify; }
+  strong { font-weight: 700; }
+  em { font-style: italic; }
+  h1, h2, h3, h4, .eyebrow, .meta, table, .tag, .box .k, figcaption, .toc { font-family: var(--sans); }
+  code { font-family: var(--mono); font-size: .85em; background: var(--line2); padding: .04em .3em; border-radius: 3px; }
+
+  /* title block */
+  .titleblock { padding: 42px 0 20px; border-bottom: 2.5px solid var(--ink); margin-bottom: 4px; }
+  .eyebrow { font-size: 8pt; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); margin: 0 0 14px; }
+  h1 { font-family: var(--sans); font-size: 22pt; line-height: 1.12; letter-spacing: -.01em; font-weight: 800; margin: 0 0 10px; }
+  .subtitle { font-size: 12pt; color: var(--muted); font-style: italic; margin: 0 0 20px; }
+  .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 24px; font-size: 8.6pt; color: var(--muted); }
+  .meta b { color: var(--ink); font-weight: 600; }
+
+  .abstract { background: #faf9f7; border: 1px solid var(--line); border-radius: 6px; padding: 16px 20px; margin: 22px 0 6px; }
+  .abstract h4 { margin: 0 0 6px; font-size: 8.5pt; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); }
+  .abstract p { margin: 0; font-size: 9.8pt; }
+
+  h2 { font-size: 14pt; font-weight: 750; letter-spacing: -.01em; margin: 26px 0 8px; padding-top: 8px; }
+  h2 .n { color: var(--accent); margin-right: 10px; }
+  h3 { font-size: 10.8pt; font-weight: 700; margin: 15px 0 5px; color: #26262c; }
+  section { break-inside: auto; }
+  h2, h3 { break-after: avoid; }
+
+  ul, ol { margin: 0 0 9px; padding-left: 20px; }
+  li { margin-bottom: 4px; }
+
+  .eq { font-family: var(--mono); font-size: 9.2pt; background: #faf9f7; border-left: 2.5px solid var(--accent);
+        padding: 8px 12px; margin: 8px 0; border-radius: 0 4px 4px 0; overflow-x: auto; }
+  .eqlabel { color: var(--faint); font-family: var(--sans); font-size: 8pt; float: right; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 8.9pt; margin: 6px 0 4px; break-inside: avoid; }
+  caption { caption-side: top; text-align: left; font-family: var(--sans); font-size: 8.2pt; color: var(--faint);
+            font-weight: 600; letter-spacing: .04em; text-transform: uppercase; margin-bottom: 5px; }
+  th, td { text-align: left; padding: 6px 9px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  thead th { border-bottom: 1.5px solid var(--ink); font-size: 7.8pt; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+  td.num, th.num { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+  tbody tr:last-child td { border-bottom: 1.2px solid var(--ink); }
+  tr.hi td { background: var(--good-soft); }
+  .tag { font-family: var(--mono); font-size: 7pt; font-weight: 700; padding: 1.5px 5px; border-radius: 3px; white-space: nowrap; }
+  .tag.ok { color: var(--good); background: var(--good-soft); }
+  .tag.no { color: var(--bad); background: var(--bad-soft); }
+  .tag.wn { color: var(--accent); background: var(--accent-soft); }
+
+  .box { border: 1px solid var(--line); border-radius: 6px; padding: 13px 16px; margin: 10px 0; break-inside: avoid; background: #fcfbfa; }
+  .box .k { font-size: 8pt; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); font-weight: 700; margin-bottom: 5px; }
+  .box p:last-child { margin-bottom: 0; }
+
+  figure { margin: 12px 0; break-inside: avoid; }
+  figcaption { font-size: 8pt; color: var(--faint); margin-top: 5px; }
+  .bars { display: flex; flex-direction: column; gap: 7px; }
+  .bar { display: grid; grid-template-columns: 120px 1fr 60px; align-items: center; gap: 10px; font-size: 8.6pt; }
+  .bar .lab { font-family: var(--sans); color: var(--muted); }
+  .track { height: 15px; background: var(--line2); border-radius: 3px; overflow: hidden; }
+  .fill { height: 100%; }
+  .bar .v { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; font-weight: 700; font-size: 8.8pt; }
+
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  hr.sec { border: 0; border-top: 1px solid var(--line); margin: 22px 0 0; }
+  footer { margin-top: 26px; padding-top: 12px; border-top: 1px solid var(--line); font-family: var(--sans); font-size: 7.8pt; color: var(--faint); }
+  .refs { font-size: 8.6pt; }
+  .refs li { margin-bottom: 5px; }
+
+  @page { size: A4; margin: 16mm 15mm 14mm; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="titleblock">
+    <p class="eyebrow">Technical Report · Simulation-Based Humanoid Robotics</p>
+    <h1>Reinforcement Learning for a Bipedal Humanoid Walking and Navigating in a Robotic Cell</h1>
+    <p class="subtitle">Training the Unitree R1 to walk, avoid an obstacle, and stop safely — entirely in NVIDIA Isaac&nbsp;Sim</p>
+    <div class="meta">
+      <span><b>Platform</b> NVIDIA Isaac Sim 5.1 · Isaac Lab</span>
+      <span><b>Learning</b> PPO (rsl_rl), on-policy actor–critic</span>
+      <span><b>Robot</b> Unitree R1 (legged bipedal humanoid)</span>
+      <span><b>Hardware</b> NVIDIA RTX 5070 Ti (Blackwell)</span>
+      <span><b>Context</b> Sim-first workflow toward the physical cell</span>
+      <span><b>Status</b> Milestones achieved &amp; behaviourally verified</span>
+    </div>
+  </div>
+
+  <div class="abstract">
+    <h4>Abstract</h4>
+    <p>This report documents the design, training, and verification of reinforcement-learning (RL) controllers that make a Unitree&nbsp;R1 bipedal humanoid walk and navigate inside a KUKA robotic cell, purely in simulation. A low-level velocity-tracking <em>walking</em> policy was trained with Proximal Policy Optimization (PPO), then reused, frozen, as the actuator for a high-level <em>navigation</em> policy in a hierarchical architecture. Two instructive failure modes were diagnosed and corrected: (i) a reward-hacking gait in which the robot crawled instead of walking, resolved through termination and posture shaping; and (ii) a navigation policy that never reached its goals because it issued velocity commands outside the range the walker was trained on, resolved by bounding the high-level action. The final walking policy holds an upright posture 100% of the time; the navigation policy reaches goals while avoiding an obstacle and remaining within the cell in 98.8% upright motion. A deployment task — walk toward an obstacle and stop 60&nbsp;cm short, repeatedly, inside the cell — is demonstrated. A recurring lesson is that agent behaviour, not scalar reward, must be the acceptance criterion.</p>
+  </div>
+
+  <section>
+    <h2><span class="n">1</span>Introduction</h2>
+    <p>Bipedal humanoids are attractive for shared human–robot workspaces such as manufacturing cells because they operate in environments built for people, without dedicated tracks or fixtures. They are also difficult to control: a legged robot has no passive stability and must actively regulate balance across many joints at every control step. Classical model-based controllers for such systems are laborious to derive and tune. Reinforcement learning offers an alternative in which the designer specifies <em>what</em> good behaviour is worth, through a reward function, and the controller discovers <em>how</em> to achieve it through large-scale trial and error.</p>
+    <p>Conducting this trial and error on physical hardware is slow and unsafe. The now-standard approach is to train in a GPU-accelerated physics simulator that runs thousands of robot instances in parallel, then transfer the learned policy. This work uses NVIDIA Isaac&nbsp;Sim with the Isaac Lab framework, which provides the PhysX physics engine, batched environments, and a manager-based Markov Decision Process (MDP) abstraction. The target robot is the Unitree&nbsp;R1, a legged bipedal humanoid, and the target environment is a KUKA robotic cell containing the industrial arm and an obstacle. All results reported here are in simulation, consistent with a sim-first development strategy in which control policies are matured virtually before any physical deployment.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">2</span>Objectives</h2>
+    <p>The project pursued a single capability decomposed into progressive milestones:</p>
+    <ol>
+      <li><strong>Locomotion.</strong> Train an RL policy that makes the R1 walk while tracking a commanded base velocity and maintaining an upright, full-height posture.</li>
+      <li><strong>In-cell navigation.</strong> Train a second, higher-level RL policy that drives the walker to arbitrary goal positions while (a) avoiding a designated obstacle and (b) remaining inside the bounded cell.</li>
+      <li><strong>Verification.</strong> Accept a policy only on the basis of measured behaviour — upright fraction, goal-reaching rate, obstacle clearance, and containment — rather than on training reward alone.</li>
+      <li><strong>Deployment demonstration.</strong> Place a single R1 inside the KUKA cell and show it walk toward an obstacle and stop a fixed safety distance (60&nbsp;cm) short of it, repeating as the obstacle relocates.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2><span class="n">3</span>Algorithms and Learning Framework</h2>
+
+    <h3>3.1 Proximal Policy Optimization</h3>
+    <p>All policies were trained with PPO, an on-policy actor–critic algorithm. An <em>actor</em> network maps observations to a distribution over continuous actions; a <em>critic</em> network estimates the state value used to compute advantages. PPO improves the policy while limiting the size of each update through a clipped surrogate objective, which stabilizes training:</p>
+    <div class="eq"><span class="eqlabel">(1)</span>L(θ) = E[ min( r(θ)·Â , clip(r(θ), 1−ε, 1+ε)·Â ) ]</div>
+    <p>where <code>r(θ)</code> is the probability ratio between the updated and previous policy, <code>Â</code> is the generalized-advantage estimate (GAE), and <code>ε</code> is the clip range. Both networks are multilayer perceptrons with hidden layers [256, 128, 128] and ELU activations. Training was massively parallel: 2,048–3,072 robot instances stepped simultaneously on one GPU, with the implementation provided by the <code>rsl_rl</code> library.</p>
+
+    <h3>3.2 Hierarchical control</h3>
+    <p>Navigation was framed as a two-level hierarchy rather than a single monolithic policy:</p>
+    <ul>
+      <li><strong>Low level (frozen).</strong> The trained walking policy consumes proprioception plus a velocity command and outputs joint targets. After training, it was exported to TorchScript and used unchanged.</li>
+      <li><strong>High level (trained).</strong> A new PPO policy observes the goal and obstacle and outputs the velocity command that the low level executes. It runs at one-tenth the low-level control rate: each high-level decision is realized over roughly forty physics steps of walking.</li>
+    </ul>
+    <p>This separation lets the difficult skill of balance be solved once and reused, so the navigation policy only has to learn <em>where</em> to go, not <em>how</em> to stay upright.</p>
+
+    <h3>3.3 The reward as a specification</h3>
+    <p>Each task reward is a weighted sum of terms, <code>R = Σ wᵢ·rᵢ</code>, combining objectives (e.g. velocity or goal tracking) with regularizing penalties (e.g. posture, energy, jerk) and episode terminations that end an unsafe or undesirable trajectory. As Section&nbsp;6 discusses, the exact composition of this sum — including which failures terminate an episode — proved decisive.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">4</span>Methodology</h2>
+
+    <h3>4.1 Robot and simulation setup</h3>
+    <p>The Unitree R1 was imported from its URDF description into Isaac Sim's USD format. Actuators were grouped (legs, feet, arms) with per-group stiffness and damping. Physics ran at a 5&nbsp;ms step with a control decimation of four. Training was headless on an RTX&nbsp;5070&nbsp;Ti (Blackwell architecture) with a CUDA-matched PyTorch build; long runs were launched as detached processes so they survived interactive-session restarts.</p>
+
+    <h3>4.2 Walking task</h3>
+    <p>The locomotion task was adapted from Isaac Lab's velocity-tracking template for the Unitree&nbsp;G1. The observation comprises base linear and angular velocity, projected gravity, the velocity command, joint positions and velocities, and the previous action. The action is a vector of joint position targets. The reward rewards tracking of the commanded planar and yaw velocities and penalizes vertical motion, excessive joint torque and acceleration, action rate, and — critically — posture deviations. Episodes terminate on illegal base contact and, after the correction of Section&nbsp;5.1, on loss of height or excessive tilt.</p>
+
+    <h3>4.3 Navigation task</h3>
+    <p>The high-level environment reuses the walker's scene and inserts: a goal command sampled within the cell; a virtual obstacle at a fixed in-cell location; observations of the goal and obstacle relative to the robot; and a bounded 7&nbsp;×&nbsp;7&nbsp;m cell. The reward combines coarse and fine goal-distance terms, a heading term, a dense <em>progress</em> term rewarding motion toward the goal, and an obstacle-proximity penalty. Episodes terminate — with a large penalty — on falling, on colliding with the obstacle, or on leaving the cell, so that safe containment is enforced by construction rather than hoped for.</p>
+
+    <table>
+      <caption>Table 1 — Principal PPO hyperparameters</caption>
+      <thead><tr><th>Parameter</th><th>Walking</th><th>Navigation</th></tr></thead>
+      <tbody>
+        <tr><td>Parallel environments</td><td class="num">3,072</td><td class="num">2,048</td></tr>
+        <tr><td>Network (actor / critic)</td><td>[256,128,128]</td><td>[256,128,128]</td></tr>
+        <tr><td>Discount γ / GAE λ</td><td class="num">0.99 / 0.95</td><td class="num">0.99 / 0.95</td></tr>
+        <tr><td>Clip ε / learning rate</td><td class="num">0.2 / 1e‑3</td><td class="num">0.2 / 1e‑3</td></tr>
+        <tr><td>Steps per env / epochs</td><td class="num">24 / 5</td><td class="num">24 / 5</td></tr>
+        <tr><td>Total iterations</td><td class="num">4,000</td><td class="num">3,799</td></tr>
+      </tbody>
+    </table>
+
+    <h3>4.4 Verification protocol</h3>
+    <p>After training, each policy was evaluated headlessly over hundreds of instances. Locomotion was scored by the fraction of time the torso remained upright and at standing height while executing a fixed command. Navigation was scored by time-at-goal, mean goal distance, obstacle clearance, containment, and upright fraction. These behavioural measures — not training reward — were the acceptance criteria.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">5</span>Results</h2>
+
+    <h3>5.1 Walking policy</h3>
+    <p>A first policy trained on the direct G1-derived reward attained a plausible-looking reward yet failed verification: it had learned to <strong>crawl</strong> — falling onto its torso (height ≈ 0.29&nbsp;m) and sliding forward at ≈ 0.6&nbsp;m/s, which still collected the velocity-tracking reward. Upright fraction was 0%. The reward was corrected by (i) terminating episodes when the torso dropped below 0.5&nbsp;m or tilted beyond ≈ 46°, and (ii) rewarding upright orientation and standing height. Retraining from scratch produced a genuine gait.</p>
+
+    <table>
+      <caption>Table 2 — Walking policy: reward is not behaviour</caption>
+      <thead><tr><th>Policy</th><th class="num">Reward</th><th class="num">Upright</th><th class="num">Torso ht.</th><th>Verdict</th></tr></thead>
+      <tbody>
+        <tr><td>Reward-hacking gait</td><td class="num">12.4</td><td class="num">0%</td><td class="num">0.29 m</td><td><span class="tag no">CRAWLS</span></td></tr>
+        <tr class="hi"><td>Corrected reward (final)</td><td class="num">≈ 30</td><td class="num">100%</td><td class="num">0.72 m</td><td><span class="tag ok">WALKS</span></td></tr>
+      </tbody>
+    </table>
+
+    <figure>
+      <div class="bars">
+        <div class="bar"><span class="lab">Crawler — upright</span><div class="track"><div class="fill" style="width:1%;background:var(--bad)"></div></div><span class="v">0%</span></div>
+        <div class="bar"><span class="lab">Walker — upright</span><div class="track"><div class="fill" style="width:100%;background:var(--good)"></div></div><span class="v">100%</span></div>
+        <div class="bar"><span class="lab">Walker — velocity track</span><div class="track"><div class="fill" style="width:93%;background:var(--good)"></div></div><span class="v">0.93 m/s</span></div>
+      </div>
+      <figcaption>Figure 1 — Behavioural verification of the corrected walking policy (256 instances, commanded 1.0&nbsp;m/s). The robot stays fully upright at standing height and tracks the command.</figcaption>
+    </figure>
+
+    <h3>5.2 Navigation policy</h3>
+    <p>The hierarchical navigation policy required two corrections before it worked (detailed in Section&nbsp;6). The final policy was trained to 3,799 iterations and verified over 256 instances:</p>
+
+    <table>
+      <caption>Table 3 — Navigation policy: measured behaviour</caption>
+      <thead><tr><th>Metric</th><th class="num">Result</th><th>Interpretation</th></tr></thead>
+      <tbody>
+        <tr><td>Upright fraction</td><td class="num">98.8%</td><td>walks (does not crawl) under nav commands</td></tr>
+        <tr><td>Time at goal (&lt; 0.5 m)</td><td class="num">57.9%</td><td>reliably reaches and dwells at targets</td></tr>
+        <tr><td>Mean goal distance</td><td class="num">0.91 m</td><td>closes distance across the episode</td></tr>
+        <tr><td>Time near obstacle</td><td class="num">0.5%</td><td>avoids the obstacle</td></tr>
+        <tr><td>Closest approach</td><td class="num">0.47 m</td><td>never enters the collision radius</td></tr>
+        <tr><td>Time outside cell</td><td class="num">0.0%</td><td>containment is absolute</td></tr>
+      </tbody>
+    </table>
+
+    <h3>5.3 Deployment demonstration</h3>
+    <p>A single R1 was placed on the open floor of the KUKA cell. Using the trained walking policy with a distance-triggered stop, the robot settles onto its feet, accelerates smoothly to walking speed, approaches the obstacle, and stops with its body 60&nbsp;cm short of the obstacle surface, then holds a balanced stand. When the obstacle relocates, the robot turns and walks to the new position, repeating indefinitely; sixteen consecutive rounds were observed without a fall. Torso height held at ≈ 0.72&nbsp;m throughout.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">6</span>Discussion</h2>
+
+    <h3>6.1 Reward hacking and the primacy of behaviour</h3>
+    <p>The crawling gait is a textbook case of reward hacking: the policy found a high-reward trajectory that violated the designer's unstated intent (to walk upright). It was invisible in the reward curve and only exposed by an upright-fraction measurement. The corrective principle was to make the undesired trajectory <em>non-viable</em> by ending the episode when it occurs, rather than merely under-rewarding it. This reframes reward design as much about terminations as about positive incentives.</p>
+
+    <h3>6.2 The action-range coupling in hierarchical control</h3>
+    <p>The most subtle failure was in navigation: the high-level policy's raw output was unbounded, but the frozen walker had only ever been trained on forward speeds in [0, 1]&nbsp;m/s, lateral in [±0.5], and yaw in [±1]. Commands outside that range were not faithfully executed, so the robot did not move where the high level intended and the goal-reaching signal never improved — the policy stalled with its goal-distance metric flat across an entire training run. Bounding the high-level action into the walker's trained command range with a smooth (tanh) squash resolved it immediately: goal-reaching metrics improved by two orders of magnitude. The general lesson is that when a pre-trained module is reused, the interface between levels must respect the module's training distribution.</p>
+
+    <h3>6.3 A timid local optimum</h3>
+    <p>An intermediate navigation policy learned only the safety behaviours (stay in the cell, avoid the obstacle, do not fall) and effectively stood still, because moving risked penalties while the goal reward gradient was too weak. Adding a dense <em>progress</em> reward — proportional to velocity toward the goal at every step — supplied the gradient needed to leave the standstill optimum. Sparse "arrival" rewards alone were insufficient; a dense shaping term was required.</p>
+
+    <h3>6.4 Deployment robustness and limitations</h3>
+    <p>In deployment the walker occasionally toppled at start-up when commanded to full speed before settling; a brief stand-and-settle phase, gradual acceleration, and an automatic reset-on-fall made the demonstration reliable. Known limitations: the walking policy's <em>standing</em> stability is marginally weaker than its <em>walking</em> stability and was not separately optimized; the demonstration obstacle is virtual (no collision mesh), so the 60&nbsp;cm stand-off is enforced by the controller rather than by contact; and all results are in simulation, with sim-to-real transfer left as future work. Finally, high-performance-computing acceleration was considered but judged unnecessary — each policy trains in roughly two hours on a single GPU, and every difficulty encountered was one of diagnosis, not of compute.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">7</span>Conclusion and Future Work</h2>
+    <p>Two reinforcement-learning controllers were developed and behaviourally verified for a Unitree&nbsp;R1 humanoid in a simulated KUKA cell: a low-level walking policy that is upright 100% of the time, and a high-level navigation policy that reaches goals, avoids an obstacle, and stays inside the cell in 98.8% upright motion. A hierarchical design let the balance skill be trained once and reused. The project's throughline is methodological: a rising reward repeatedly masked incorrect behaviour, and progress came from measuring what the robot actually did and from treating the reward — including its termination conditions and the interfaces between learned modules — as a precise specification.</p>
+    <p>Future work follows three directions: (i) <strong>sim-to-real</strong> transfer via domain randomization and physical validation of the walker; (ii) <strong>perception-driven navigation</strong>, replacing the virtual obstacle coordinate with onboard sensing so the robot avoids real objects; and (iii) <strong>manipulation</strong>, extending the arms into task execution once the robot has reached a target. The trained artefacts — walking and navigation policies, the cell environments, and the verification harness — provide the foundation for each.</p>
+  </section>
+
+  <hr class="sec">
+  <section>
+    <h3>References</h3>
+    <ol class="refs">
+      <li>Schulman, J. et&nbsp;al. <em>Proximal Policy Optimization Algorithms.</em> arXiv:1707.06347, 2017.</li>
+      <li>Schulman, J. et&nbsp;al. <em>High-Dimensional Continuous Control Using Generalized Advantage Estimation.</em> ICLR, 2016.</li>
+      <li>Mittal, M. et&nbsp;al. <em>Isaac Lab (Orbit): A Unified Simulation Framework for Robot Learning.</em> IEEE RA-L, 2023.</li>
+      <li>Rudin, N. et&nbsp;al. <em>Learning to Walk in Minutes Using Massively Parallel Deep RL.</em> CoRL, 2021. (rsl_rl)</li>
+      <li>NVIDIA. <em>Isaac Sim 5.1 and PhysX Documentation.</em> 2025.</li>
+    </ol>
+  </section>
+
+  <footer>
+    Reinforcement Learning for a Bipedal Humanoid in a Robotic Cell — Technical Report. Isaac Sim 5.1 / Isaac Lab · PPO (rsl_rl) · NVIDIA RTX 5070 Ti. All results in simulation.
+  </footer>
+
+</div>
+</body>
+</html>

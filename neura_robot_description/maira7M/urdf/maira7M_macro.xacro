@@ -1,0 +1,360 @@
+<?xml version="1.0"?>
+<robot name="maira7M" xmlns:xacro="http://wiki.ros.org/xacro" xmlns:controller="http://playerstage.sourceforge.net/gazebo/xmlschema/#controller" xmlns:interface="http://playerstage.sourceforge.net/gazebo/xmlschema/#interface" xmlns:sensor="http://playerstage.sourceforge.net/gazebo/xmlschema/#sensor" >
+   
+	<xacro:arg name="prefix" default="maira7M_"/>
+	<xacro:arg name="parameter_file_name" default="maira7M_kinematic_parameters_nominal"/>
+	<xacro:arg name="dynamic_parameter_file_name" default="maira7M_dynamic_parameters_nominal"/>
+	<xacro:arg name="limits_file_name" default="maira7M_limits"/>
+
+
+  	<xacro:macro name="maira7M_robot" params="prefix:=${prefix} 
+	  										parameter_file_name:=maira7M_kinematic_parameters_nominal 
+	  										dynamic_parameter_file_name=maira7M_dynamic_parameters_nominal 
+											limits_file_name=maira7M_limits">
+
+		<xacro:include filename="$(find neura_robot_description)/maira7M/urdf/${parameter_file_name}.xacro" />
+		<xacro:include filename="$(find neura_robot_description)/maira7M/urdf/${dynamic_parameter_file_name}.xacro" />
+		<xacro:include filename="$(find neura_robot_description)/maira7M/urdf/${limits_file_name}.xacro" />
+
+<material name="blue">
+ <color rgba="0 0 0.8 1"/>
+</material>
+<material name="white">
+ <color rgba="1 1 1 1"/>
+</material>
+<material name="MelonYellow">
+<color rgba="1.0 0.6 0.0 1.0"/>
+</material>
+
+		<link name="${prefix}root_link"/>
+		<joint name="${prefix}root_joint" type="fixed"> 
+			<origin rpy="0 0 1.5708" xyz="0 0 0" />
+			<parent link="${prefix}root_link"/>
+			<child link="${prefix}link0"/>
+		</joint>
+
+		<link name="${prefix}link0"> 
+			<inertial>
+				<mass value="${mass_0}" />
+				<origin rpy="0 0 0" xyz="${cog_x_0} ${cog_y_0} ${cog_z_0}" />
+				<inertia ixx="${i_xx_0}" ixy="${i_xy_0}"  ixz="${i_xz_0}"
+										iyy="${i_yy_0}"  iyz="${i_yz_0}"
+														izz="${i_zz_0}" />
+			</inertial>
+			<visual>
+				<origin rpy="0 0 0" xyz="0 0 0" />
+				<geometry>
+					<mesh filename="package://neura_robot_description/maira7M/meshes/Link0_body.stl"/>
+				</geometry>
+				<material name="white"/>
+			</visual>
+			<collision>
+				<origin rpy="0 0 0" xyz="0 0 0" />
+				<geometry>
+					<mesh filename="package://neura_robot_description/maira7M/collision/Link0_body.stl"/>
+				</geometry>
+				<material name="white"/>
+			</collision>
+		</link>
+
+		<joint name="${prefix}joint1" type="revolute"> 
+			<origin rpy="${R1} ${P1} ${Y1}" xyz="${x1} ${y1} ${z1}" />
+			<axis xyz="0 1 0" />
+			<limit lower="${lower_joint_limit_1}" upper="${upper_joint_limit_1}" effort="${torque_limit_1}" velocity="${joint_velocity_limit_1}" />
+			<parent link="${prefix}link0"/>
+			<child link="${prefix}link1"/>
+		</joint>
+
+		<link name="${prefix}link1">  
+			<inertial> 
+				<mass value="${mass_1}" />
+				<origin rpy="0 0 0" xyz="${cog_x_1} ${cog_y_1} ${cog_z_1}" />
+				<inertia ixx="${i_xx_1}" ixy="${i_xy_1}"  ixz="${i_xz_1}"
+										iyy="${i_yy_1}"  iyz="${i_yz_1}"
+														izz="${i_zz_1}" />
+			</inertial>
+			<visual>
+				<origin rpy="0 0 0" xyz="0 0 0" />
+				<geometry>
+					<mesh filename="package://neura_robot_description/maira7M/meshes/Link1_body.stl" />
+				</geometry>
+				<material name="white"/>
+			</visual>
+			<visual>
+				<geometry>
+					<mesh filename="package://neura_robot_description/maira7M/meshes/Link1_led.stl" />
+				</geometry>
+				<material name="white"/>
+			</visual>
+			<visual>
+				<geometry>
+					<mesh filename="package://neura_robot_description/maira7M/meshes/Link1_ring.stl" />
+				</geometry>
+				<material name="white"/>
+			</visual>
+			<collision>
+				<origin rpy="0 0 0" xyz="0 0 0" />
+				<geometry>
+					<mesh filename="package://neura_robot_description/maira7M/collision/Link1_body.stl"/>
+				</geometry>
+				<material name="white"/>
+			</collision>
+		</link>
+
+		<joint name="${prefix}joint2" type="revolute">  
+			<origin rpy="${R2} ${P2} ${Y2}" xyz="${x2} ${y2} ${z2}" /> 
+			<axis xyz="1 0 0" />
+			<limit lower="${lower_joint_limit_2}" upper="${upper_joint_limit_2}" effort="${torque_limit_2}" velocity="${joint_velocity_limit_2}" />
+			<parent link="${prefix}link1"/>
+			<child link="${prefix}link2"/>
+		</joint>
+
+		<link name="${prefix}link2"> 
+			<inertial> 
+				<mass value="${mass_2}" />
+				<origin rpy="0 0 0" xyz="${cog_x_2} ${cog_y_2} ${cog_z_2}" />
+				<inertia ixx="${i_xx_2}" ixy="${i_xy_2}"  ixz="${i_xz_2}"
+										 iyy="${i_yy_2}"  iyz="${i_yz_2}"
+														  izz="${i_zz_2}" />
+			</inertial>
+			<visual>
+				<origin rpy="0 0 0" xyz="0 0 0" />
+				<geometry>
+					<mesh filename="package://neura_robot_description/maira7M/meshes/Link2_body.stl" />
+				</geometry>
+				<material name="white"/>
+			</visual>
+			<visual>
+				<geometry>
+					<mesh filename="package://neura_robot_description/maira7M/meshes/Link2_led.stl"/>
+				</geometry>
+				<material name="white"/>
+			</visual>
+			<visual>
+				<geometry>
+					<mesh filename="package://neura_robot_description/maira7M/meshes/Link2_ring.stl"/>
+				</geometry>
+				<material name="white"/>
+			</visual>
+			<collision>
+				<origin rpy="0 0 0" xyz="0 0 0" />
+				<geometry>
+					<mesh filename="package://neura_robot_description/maira7M/collision/Link2_body.stl" />
+				</geometry>
+				<material name="white"/>
+			</collision>
+		</link>
+
+		<joint name="${prefix}joint3" type="revolute">  
+			<origin rpy="${R3} ${P3} ${Y3}" xyz="${x3} ${y3} ${z3}" /> 
+			<axis xyz="0 1 0" />
+			<limit lower="${lower_joint_limit_3}" upper="${upper_joint_limit_3}" effort="${torque_limit_3}" velocity="${joint_velocity_limit_3}" />
+			<parent link="${prefix}link2"/>
+			<child link="${prefix}link3"/>
+		</joint>
+
+		<link name="${prefix}link3"> 
+			<inertial> 
+				<mass value="${mass_3}" />
+				<origin rpy="0 0 0" xyz="${cog_x_3} ${cog_y_3} ${cog_z_3}" />
+				<inertia ixx="${i_xx_3}" ixy="${i_xy_3}"  ixz="${i_xz_3}"
+										 iyy="${i_yy_3}"  iyz="${i_yz_3}"
+														  izz="${i_zz_3}" />
+			</inertial>
+			<visual>
+				<origin rpy="0 0 0" xyz="0 0 0" />
+				<geometry>
+					<mesh filename="package://neura_robot_description/maira7M/meshes/Link3_body.stl" />
+				</geometry>
+				<material name="white"/>
+			</visual>
+			<collision>
+				<origin rpy="0 0 0" xyz="0 0 0" />
+				<geometry>
+					<mesh filename="package://neura_robot_description/maira7M/collision/Link3_body.stl" />
+				</geometry>
+				<material name="white"/>
+			</collision>
+		</link>
+
+		<joint name="${prefix}joint4" type="revolute">  
+			<origin rpy="${R4} ${P4} ${Y4}" xyz="${x4} ${y4} ${z4}" />
+			<axis xyz="1 0 0" />
+			<limit lower="${lower_joint_limit_4}" upper="${upper_joint_limit_4}" effort="${torque_limit_4}" velocity="${joint_velocity_limit_4}" />
+			<parent link="${prefix}link3" />
+			<child link="${prefix}link4" />
+		</joint>
+
+		<link name="${prefix}link4">  
+			<inertial> 
+				<mass value="${mass_4}" />
+				<origin rpy="0 0 0" xyz="${cog_x_4} ${cog_y_4} ${cog_z_4}" />
+				<inertia ixx="${i_xx_4}" ixy="${i_xy_4}"  ixz="${i_xz_4}"
+										 iyy="${i_yy_4}"  iyz="${i_yz_4}"
+													      izz="${i_zz_4}" />
+			</inertial>
+			<visual>
+				<origin rpy="0 0 0" xyz="0 0 0" />
+				<geometry>
+					<mesh filename="package://neura_robot_description/maira7M/meshes/Link4_body.stl" />
+				</geometry>
+				<material name="white"/>
+			</visual>
+			<visual>
+				<origin rpy="0 0 0" xyz="0 0 0" />
+				<geometry>
+					<mesh filename="package://neura_robot_description/maira7M/meshes/Link4_led.stl" />
+				</geometry>
+				<material name="white"/>
+			</visual>
+			<visual>
+				<origin rpy="0 0 0" xyz="0 0 0" />
+				<geometry>
+					<mesh filename="package://neura_robot_description/maira7M/meshes/Link4_ring.stl" />
+				</geometry>
+				<material name="white"/>
+			</visual>
+			<collision>
+				<origin rpy="0 0 0" xyz="0 0 0" />
+				<geometry>
+					<mesh filename="package://neura_robot_description/maira7M/collision/Link4_body.stl" /> 
+				</geometry>
+				<material name="white"/>
+			</collision>
+		</link>
+
+		<joint name="${prefix}joint5" type="revolute">  
+			<origin rpy="${R5} ${P5} ${Y5}" xyz="${x5} ${y5} ${z5}" />
+			<axis xyz="0 1 0" />
+			<limit lower="${lower_joint_limit_5}" upper="${upper_joint_limit_5}" effort="${torque_limit_5}" velocity="${joint_velocity_limit_5}" />
+			<parent link="${prefix}link4"/>
+			<child link="${prefix}link5"/>
+		</joint>
+
+		<link name="${prefix}link5">  
+			<inertial> 
+				<mass value="${mass_5}" /> 
+				<origin rpy="0 0 0" xyz="${cog_x_5} ${cog_y_5} ${cog_z_5}" />
+				<inertia ixx="${i_xx_5}" ixy="${i_xy_5}"  ixz="${i_xz_5}"
+										 iyy="${i_yy_5}"  iyz="${i_yz_5}"
+														  izz="${i_zz_5}" />
+			</inertial>
+			<visual>
+				<origin rpy="0 0 0" xyz="0 0 0" />
+				<geometry>
+					<mesh filename="package://neura_robot_description/maira7M/meshes/Link5_body.stl" />
+				</geometry>
+				<material name="white"/>
+			</visual>
+			<collision>
+				<origin rpy="0 0 0" xyz="0 0 0" />
+				<geometry>
+					<mesh filename="package://neura_robot_description/maira7M/collision/Link5_body.stl" />
+				</geometry>
+				<material name="white"/>
+			</collision>
+		</link>
+	
+		<joint name="${prefix}joint6" type="revolute"> 
+			<origin rpy="${R6} ${P6} ${Y6}" xyz="${x6} ${y6} ${z6}" />
+			<axis xyz="1 0 0" />
+			<limit lower="${lower_joint_limit_6}" upper="${upper_joint_limit_6}" effort="${torque_limit_6}" velocity="${joint_velocity_limit_6}" />
+			<parent link="${prefix}link5"/>
+			<child link="${prefix}link6"/>
+		</joint>
+
+		<link name="${prefix}link6">  
+			<inertial> 
+				<mass value="${mass_6}" />
+				<origin rpy="0 0 0" xyz="${cog_x_6} ${cog_y_6} ${cog_z_6}" />
+				<inertia ixx="${i_xx_6}" ixy="${i_xy_6}"  ixz="${i_xz_6}"
+										 iyy="${i_yy_6}"  iyz="${i_yz_6}"
+														  izz="${i_zz_6}" />
+			</inertial>
+			<visual>
+				<origin rpy="0 0 0" xyz="0 0 0" />
+				<geometry>
+					<mesh filename="package://neura_robot_description/maira7M/meshes/Link6_body.stl" />
+				</geometry>
+				<material name="white"/>
+			</visual>
+			<visual>
+				<origin rpy="0 0 0" xyz="0 0 0" />
+				<geometry>
+					<mesh filename="package://neura_robot_description/maira7M/meshes/Link6_led.stl" />
+				</geometry>
+				<material name="white"/>
+			</visual>
+			<visual>
+				<origin rpy="0 0 0" xyz="0 0 0" />
+				<geometry>
+					<mesh filename="package://neura_robot_description/maira7M/meshes/Link6_ring.stl" />
+				</geometry>
+				<material name="white"/>
+			</visual>
+			<visual>
+				<origin rpy="0 0 0" xyz="0 0 0" />
+				<geometry>
+					<mesh filename="package://neura_robot_description/maira7M/meshes/Link6_sensors.stl" />
+				</geometry>
+				<material name="white"/>
+			</visual>
+			<collision>
+				<origin rpy="0 0 0" xyz="0 0 0" />
+				<geometry>
+					<mesh filename="package://neura_robot_description/maira7M/collision/Link6_body.stl" />
+				</geometry>
+				<material name="white"/>
+			</collision>
+		</link> 
+
+		<joint name="${prefix}joint7" type="revolute">  
+			<origin rpy="${R7} ${P7} ${Y7}" xyz="${x7} ${y7} ${z7}" />
+			<axis xyz="0 1 0" />
+			<limit lower="${lower_joint_limit_7}" upper="${upper_joint_limit_7}" effort="${torque_limit_7}" velocity="${joint_velocity_limit_7}" />
+			<parent link="${prefix}link6"/>
+			<child link="${prefix}link7"/>
+		</joint> 
+
+		<link name="${prefix}link7">   
+			<inertial> 
+				<mass value="${mass_7}" />
+				<origin rpy="0 0 0" xyz="${cog_x_7} ${cog_y_7} ${cog_z_7}" />
+				<inertia ixx="${i_xx_7}" ixy="${i_xy_7}"  ixz="${i_xz_7}"
+										 iyy="${i_yy_7}"  iyz="${i_yz_7}"
+														  izz="${i_zz_7}" />
+			</inertial>
+			<visual>
+				<origin rpy="0 0 0" xyz="0 0 0" />
+				<geometry>
+					<mesh filename="package://neura_robot_description/maira7M/meshes/Link7_body.stl" />
+				</geometry>
+					<material name="white"/>
+			</visual>
+			<visual>
+				<origin rpy="0 0 0" xyz="0 0 0" />
+				<geometry>
+					<mesh filename="package://neura_robot_description/maira7M/meshes/Link7_led.stl" />
+				</geometry>
+					<material name="white"/>
+			</visual>
+			<collision>
+				<origin rpy="0 0 0" xyz="0 0 0" />
+				<geometry>
+					<mesh filename="package://neura_robot_description/maira7M/collision/Link7_body.stl" />
+				</geometry>
+				<material name="white"/>
+
+			</collision>
+		</link> 
+
+		<link name = "${prefix}flange"/>
+		<joint name="${prefix}link7_to_flange" type="fixed">
+   			<origin rpy="${R8} ${P8} ${Y8}" xyz="${x8} ${y8} ${z8}" />
+			<parent link="${prefix}link7"/>
+			<child link="${prefix}flange"/>
+		</joint> 
+
+
+	</xacro:macro>
+</robot>

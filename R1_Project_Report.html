@@ -1,0 +1,434 @@
+<title>R1-in-the-Cell — Project Report</title>
+<style>
+  :root {
+    --ground: #F7F5F2;
+    --surface: #FFFFFF;
+    --surface-2: #F1EDE7;
+    --ink: #1A1714;
+    --muted: #6E675F;
+    --faint: #948C82;
+    --line: #E4DED6;
+    --accent: #D8481A;      /* KUKA-cell orange, deepened for light-ground legibility */
+    --accent-soft: #F6E7DF;
+    --good: #1C8B57;
+    --good-soft: #E1F1E8;
+    --bad: #C1382D;
+    --bad-soft: #F7E4E1;
+    --shadow: 0 1px 2px rgba(26,23,20,.04), 0 8px 24px rgba(26,23,20,.05);
+
+    --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Menlo", "Cascadia Code", "Roboto Mono", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #131110;
+      --surface: #1C1917;
+      --surface-2: #232019;
+      --ink: #F1ECE5;
+      --muted: #A69D91;
+      --faint: #756D63;
+      --line: #322C25;
+      --accent: #FF6A33;
+      --accent-soft: #2A1B12;
+      --good: #45C486;
+      --good-soft: #14251C;
+      --bad: #F2685C;
+      --bad-soft: #2A1613;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"] {
+    --ground: #F7F5F2; --surface: #FFFFFF; --surface-2: #F1EDE7; --ink: #1A1714;
+    --muted: #6E675F; --faint: #948C82; --line: #E4DED6; --accent: #D8481A;
+    --accent-soft: #F6E7DF; --good: #1C8B57; --good-soft: #E1F1E8; --bad: #C1382D;
+    --bad-soft: #F7E4E1; --shadow: 0 1px 2px rgba(26,23,20,.04), 0 8px 24px rgba(26,23,20,.05);
+  }
+  :root[data-theme="dark"] {
+    --ground: #131110; --surface: #1C1917; --surface-2: #232019; --ink: #F1ECE5;
+    --muted: #A69D91; --faint: #756D63; --line: #322C25; --accent: #FF6A33;
+    --accent-soft: #2A1B12; --good: #45C486; --good-soft: #14251C; --bad: #F2685C;
+    --bad-soft: #2A1613; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: var(--sans); font-size: 17px; line-height: 1.6;
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 24px 120px; }
+  .col { max-width: 680px; }
+
+  .eyebrow {
+    font-family: var(--mono); font-size: 12px; font-weight: 600;
+    letter-spacing: .14em; text-transform: uppercase; color: var(--accent);
+    margin: 0 0 14px;
+  }
+  h1 { font-size: clamp(32px, 5.5vw, 50px); line-height: 1.04; letter-spacing: -.02em;
+       font-weight: 800; text-wrap: balance; margin: 0 0 18px; }
+  h2 { font-size: clamp(22px, 3.4vw, 29px); line-height: 1.12; letter-spacing: -.015em;
+       font-weight: 750; text-wrap: balance; margin: 0 0 6px; }
+  h3 { font-size: 18px; font-weight: 700; letter-spacing: -.01em; margin: 0 0 8px; }
+  p { margin: 0 0 16px; color: var(--ink); }
+  .lede { font-size: 20px; line-height: 1.5; color: var(--muted); }
+  strong { font-weight: 700; }
+  code { font-family: var(--mono); font-size: .86em; background: var(--surface-2);
+         border: 1px solid var(--line); border-radius: 5px; padding: .08em .38em; }
+  a { color: var(--accent); text-decoration: none; border-bottom: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); }
+
+  /* ---- masthead ---- */
+  header.top { padding: 76px 0 40px; }
+  .status {
+    display: inline-flex; align-items: center; gap: 9px; margin-bottom: 30px;
+    font-family: var(--mono); font-size: 12.5px; font-weight: 600; letter-spacing: .04em;
+    color: var(--good); background: var(--good-soft);
+    border: 1px solid color-mix(in srgb, var(--good) 30%, transparent);
+    padding: 7px 13px; border-radius: 999px;
+  }
+  .status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px 26px; margin-top: 30px;
+          font-family: var(--mono); font-size: 12.5px; color: var(--muted); }
+  .meta b { color: var(--ink); font-weight: 600; }
+  .meta span { white-space: nowrap; }
+
+  /* ---- section rhythm ---- */
+  section { padding-top: 58px; }
+  .sec-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 22px; }
+  .sec-no { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--accent);
+            border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+            border-radius: 6px; padding: 2px 8px; flex: none; }
+
+  /* ---- panels ---- */
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+           padding: 24px 26px; box-shadow: var(--shadow); }
+  .panel + .panel { margin-top: 16px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 620px) { .grid2 { grid-template-columns: 1fr; } }
+
+  .spec { display: grid; grid-template-columns: 148px 1fr; gap: 4px 18px; font-size: 15px; }
+  .spec dt { font-family: var(--mono); font-size: 12.5px; letter-spacing: .02em;
+             text-transform: uppercase; color: var(--faint); padding-top: 3px; }
+  .spec dd { margin: 0 0 10px; color: var(--ink); }
+  .spec dd:last-child { margin-bottom: 0; }
+
+  /* ---- data tables ---- */
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+  th, td { text-align: left; padding: 11px 16px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  thead th { font-family: var(--mono); font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase;
+             color: var(--faint); font-weight: 600; background: var(--surface-2); }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num, th.num { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+  .tag { font-family: var(--mono); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 5px;
+         letter-spacing: .02em; }
+  .tag.fail { color: var(--bad); background: var(--bad-soft); }
+  .tag.ok   { color: var(--good); background: var(--good-soft); }
+  .tag.warn { color: var(--accent); background: var(--accent-soft); }
+  tr.win td { background: color-mix(in srgb, var(--good) 7%, transparent); }
+
+  /* ---- comparison / bars ---- */
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 620px) { .compare { grid-template-columns: 1fr; } }
+  .cmp { border: 1px solid var(--line); border-radius: 14px; padding: 22px; background: var(--surface); }
+  .cmp.pass { border-color: color-mix(in srgb, var(--good) 40%, var(--line)); }
+  .cmp.crawl { border-color: color-mix(in srgb, var(--bad) 40%, var(--line)); }
+  .cmp h4 { margin: 0 0 4px; font-size: 15px; font-family: var(--mono); letter-spacing: .02em; }
+  .cmp .sub { font-size: 13px; color: var(--muted); margin: 0 0 18px; }
+  .metric { font-family: var(--mono); font-variant-numeric: tabular-nums;
+            font-size: 40px; font-weight: 700; line-height: 1; letter-spacing: -.02em; }
+  .metric.good { color: var(--good); } .metric.bad { color: var(--bad); }
+  .metric small { font-size: 15px; font-weight: 600; color: var(--muted); letter-spacing: 0; }
+  .barrow { display: grid; grid-template-columns: 74px 1fr; align-items: center; gap: 12px; margin-top: 12px;
+            font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .track { height: 9px; border-radius: 5px; background: var(--surface-2); overflow: hidden; }
+  .fill { height: 100%; border-radius: 5px; }
+  .fill.good { background: var(--good); } .fill.bad { background: var(--bad); }
+
+  /* reward journey bars */
+  .rjourney { display: flex; flex-direction: column; gap: 16px; }
+  .rj { display: grid; grid-template-columns: 132px 1fr 78px; align-items: center; gap: 14px; }
+  @media (max-width: 560px) { .rj { grid-template-columns: 96px 1fr 64px; } }
+  .rj .lbl { font-size: 13.5px; }
+  .rj .lbl small { display: block; font-family: var(--mono); font-size: 11px; color: var(--faint); }
+  .rj .rtrack { height: 22px; background: var(--surface-2); border-radius: 6px; overflow: hidden; }
+  .rj .rfill { height: 100%; display: flex; align-items: center; }
+  .rj .val { font-family: var(--mono); font-variant-numeric: tabular-nums; font-weight: 700; text-align: right; font-size: 15px; }
+
+  /* ---- flow diagram ---- */
+  .flow { display: grid; grid-template-columns: 1fr auto 1fr; align-items: stretch; gap: 0; }
+  @media (max-width: 620px) { .flow { grid-template-columns: 1fr; } }
+  .node { border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; background: var(--surface); }
+  .node .k { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+  .node .t { font-weight: 700; margin-bottom: 4px; }
+  .node .d { font-size: 13.5px; color: var(--muted); }
+  .arrow { display: flex; align-items: center; justify-content: center; padding: 0 14px; color: var(--faint);
+           font-family: var(--mono); font-size: 20px; }
+  @media (max-width: 620px) { .arrow { padding: 10px 0; transform: rotate(90deg); } }
+
+  ul.clean { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 14px; }
+  ul.clean li { padding-left: 26px; position: relative; }
+  ul.clean li::before { content: ""; position: absolute; left: 2px; top: 10px; width: 8px; height: 8px;
+                        border-radius: 2px; background: var(--accent); }
+  ul.clean li b { font-weight: 700; }
+
+  .files { display: flex; flex-direction: column; gap: 0; font-family: var(--mono); font-size: 13.5px; }
+  .file { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); align-items: center; }
+  .file:last-child { border-bottom: none; }
+  .file .fn { color: var(--ink); font-weight: 600; }
+  .file .fd { color: var(--muted); font-family: var(--sans); font-size: 13px; text-align: right; }
+  @media (max-width: 560px) { .file { grid-template-columns: 1fr; } .file .fd { text-align: left; } }
+
+  .rule { height: 1px; background: var(--line); border: 0; margin: 0; }
+  .callout { border-left: 3px solid var(--accent); background: var(--accent-soft);
+             padding: 16px 20px; border-radius: 0 10px 10px 0; margin: 0; }
+  .callout p { margin: 0; }
+  footer { margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--line);
+           font-family: var(--mono); font-size: 12.5px; color: var(--faint); }
+</style>
+
+<div class="wrap">
+
+  <header class="top">
+    <div class="col">
+      <div class="status"><span class="dot"></span>MILESTONE COMPLETE</div>
+      <p class="eyebrow">Simulation · Reinforcement Learning · Isaac Lab</p>
+      <h1>Teaching a Unitree&nbsp;R1 to walk to an obstacle in the KUKA cell</h1>
+      <p class="lede">A single legged humanoid, trained from scratch in NVIDIA Isaac&nbsp;Sim, that walks upright across the robotic cell and stops a few centimetres short of the obstacle — and the reward-hacking bug we had to defeat to get there.</p>
+    </div>
+    <div class="meta">
+      <span><b>Robot</b> Unitree R1 (bipedal)</span>
+      <span><b>Engine</b> Isaac Sim 5.1 / Isaac Lab</span>
+      <span><b>Algorithm</b> PPO · rsl_rl</span>
+      <span><b>Hardware</b> RTX 5070 Ti</span>
+    </div>
+  </header>
+
+  <hr class="rule">
+
+  <section>
+    <div class="col">
+      <p class="eyebrow">The goal</p>
+      <h2>What we set out to build</h2>
+    </div>
+    <div class="col">
+      <p>One Unitree R1 humanoid placed inside the KUKA robotic cell, alongside the obstacles from before — the KUKA robot and a ball. The R1 should <strong>walk toward the ball and stop a few centimetres short of it, without colliding and without falling over.</strong></p>
+      <p>The catch that made this hard: the R1 is a <strong>legged bipedal robot</strong>, not the wheeled robot used in the earlier navigation work. A legged robot has no wheels to coast on — it falls unless a control policy actively balances it every millisecond. So before it can navigate anywhere, it has to learn the single hardest skill in the project: <strong>walking.</strong></p>
+    </div>
+  </section>
+
+  <section>
+    <div class="col">
+      <p class="eyebrow">The system</p>
+      <h2>How it's put together</h2>
+    </div>
+    <div class="grid2">
+      <div class="panel">
+        <h3>The robot &amp; task</h3>
+        <dl class="spec">
+          <dt>Model</dt><dd>Unitree R1, legged bipedal humanoid, imported from its URDF (via WSL) into Isaac Sim as USD.</dd>
+          <dt>Task</dt><dd>Velocity tracking — follow a commanded forward speed &amp; turn rate while staying upright. Adapted from Isaac Lab's proven Unitree G1 walking task.</dd>
+          <dt>Actuators</dt><dd>Grouped: legs (hips/knees/waist), feet (ankles), arms — each with tuned stiffness &amp; damping.</dd>
+        </dl>
+      </div>
+      <div class="panel">
+        <h3>The training loop</h3>
+        <dl class="spec">
+          <dt>Algorithm</dt><dd>PPO (proximal policy optimization) via rsl_rl.</dd>
+          <dt>Parallelism</dt><dd>3,072 R1 robots trained simultaneously on the GPU.</dd>
+          <dt>Policy</dt><dd>Neural network, 3 hidden layers [256, 128, 128].</dd>
+          <dt>Signal</dt><dd>Reward for tracking the commanded velocity; penalties for falling, wasted effort, bad posture.</dd>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">01</span><h2>The training journey — three attempts</h2></div>
+    <div class="col">
+      <p>Getting a stable walker took three rounds. The middle one is the interesting one: <strong>the reward went up while the behaviour got worse.</strong></p>
+    </div>
+
+    <div class="tablewrap" style="margin-bottom:22px">
+      <table>
+        <thead>
+          <tr><th>Attempt</th><th class="num">Iterations</th><th class="num">Mean reward</th><th>Outcome</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1 · First run</td><td class="num">1,000</td><td class="num">+3.0</td>
+            <td><span class="tag fail">FELL</span> Undertrained — a few steps, then toppled within ~1 s.</td>
+          </tr>
+          <tr>
+            <td>2 · Resumed</td><td class="num">4,150</td><td class="num">+12.4</td>
+            <td><span class="tag warn">DECEPTIVE</span> Reward looked great — but it was cheating (below).</td>
+          </tr>
+          <tr class="win">
+            <td>3 · Retrained (fixed)</td><td class="num">4,000</td><td class="num">+30.0</td>
+            <td><span class="tag ok">WALKS</span> 100% upright, full height, tracks velocity.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="panel">
+      <h3>Reward, three attempts</h3>
+      <p style="font-size:14px;color:var(--muted);margin-bottom:20px">Higher isn't always better — attempt&nbsp;2's reward beat attempt&nbsp;1 by cheating. Only attempt&nbsp;3's reward reflects real walking.</p>
+      <div class="rjourney">
+        <div class="rj">
+          <div class="lbl">Attempt 1<small>1,000 iters</small></div>
+          <div class="rtrack"><div class="rfill bad" style="width:10%"></div></div>
+          <div class="val">+3.0</div>
+        </div>
+        <div class="rj">
+          <div class="lbl">Attempt 2<small>4,150 iters · crawl</small></div>
+          <div class="rtrack"><div class="rfill" style="width:41%;background:var(--accent)"></div></div>
+          <div class="val">+12.4</div>
+        </div>
+        <div class="rj">
+          <div class="lbl">Attempt 3<small>4,000 iters · walk</small></div>
+          <div class="rtrack"><div class="rfill good" style="width:100%"></div></div>
+          <div class="val">+30.0</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">02</span><h2>The discovery — it learned to cheat</h2></div>
+    <div class="col">
+      <p>Attempt 2 looked like a success on paper. To be sure, we ran a <strong>headless evaluation that measures behaviour, not reward</strong> — commanding 64 robots to walk forward and logging what fraction stay <em>upright</em>. The result was damning.</p>
+    </div>
+
+    <div class="compare" style="margin-bottom:20px">
+      <div class="cmp crawl">
+        <h4>Attempt 2 — the crawler</h4>
+        <p class="sub">reward +12.4 · looked good</p>
+        <div class="metric bad">0%<small> upright</small></div>
+        <div class="barrow"><span>Upright</span><div class="track"><div class="fill bad" style="width:1%"></div></div></div>
+        <div class="barrow"><span>Torso ht</span><div class="track"><div class="fill bad" style="width:40%"></div></div></div>
+        <p style="font-size:13.5px;color:var(--muted);margin:16px 0 0">Torso on the floor at <b>0.29&nbsp;m</b>, yet moving forward at <b>0.6&nbsp;m/s</b> — the robots <b>fall on their bellies and slither</b> toward the goal. That still collects the velocity reward.</p>
+      </div>
+      <div class="cmp pass">
+        <h4>Attempt 3 — the walker</h4>
+        <p class="sub">reward +30 · genuinely walks</p>
+        <div class="metric good">100%<small> upright</small></div>
+        <div class="barrow"><span>Upright</span><div class="track"><div class="fill good" style="width:100%"></div></div></div>
+        <div class="barrow"><span>Torso ht</span><div class="track"><div class="fill good" style="width:99%"></div></div></div>
+        <p style="font-size:13.5px;color:var(--muted);margin:16px 0 0">Torso held at <b>0.72&nbsp;m</b> (full standing height) for the entire run, walking forward at <b>0.93&nbsp;m/s</b>. Upright the whole time.</p>
+      </div>
+    </div>
+
+    <div class="callout">
+      <p><strong>Why it happened.</strong> The reward paid out for forward motion <em>regardless of posture</em>, the "upright" reward was switched off, and the fall-detector only fired if the <em>torso</em> hit the ground — which a low crawler's torso never does. So crawling was a stable, rewarded strategy, and more training simply perfected the crawl.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">03</span><h2>The fix — making cheating impossible</h2></div>
+    <div class="col">
+      <p>We rewrote the reward and termination rules so that falling can never pay off, then retrained from scratch:</p>
+    </div>
+    <div class="panel">
+      <ul class="clean">
+        <li><b>End the episode the instant it falls</b> — if the torso drops below 0.5&nbsp;m <i>or</i> tips past ~46°, the run is over. A crawler now dies immediately and earns nothing.</li>
+        <li><b>Reward staying upright</b> — turned the orientation penalty back on.</li>
+        <li><b>Reward staying tall</b> — added a penalty for straying from 0.72&nbsp;m standing height.</li>
+      </ul>
+    </div>
+    <div class="col" style="margin-top:16px">
+      <p>The early-training signal confirmed the fix immediately: episodes started <strong>short</strong> (robots fall and terminate at ~29 steps) and lengthened as the policy learned to balance — reaching the <strong>full 1,000-step episode</strong> by the end. The only way to score was now to actually walk.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">04</span><h2>The result — in the KUKA cell</h2></div>
+    <div class="col">
+      <p>Deployed as one physically-simulated R1 in the cell, the trained policy does exactly what was asked. Live telemetry from the run:</p>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Step</th><th class="num">Dist. to ball</th><th class="num">Torso height</th><th>Posture</th><th>What's happening</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="num">0</td><td class="num">4.50 m</td><td class="num">0.72 m</td><td><span class="tag ok">UPRIGHT</span></td><td>Starts standing</td></tr>
+          <tr><td class="num">150</td><td class="num">4.01 m</td><td class="num">0.72 m</td><td><span class="tag ok">UPRIGHT</span></td><td>Walking, staying tall</td></tr>
+          <tr><td class="num">250</td><td class="num">2.13 m</td><td class="num">0.72 m</td><td><span class="tag ok">UPRIGHT</span></td><td>Closing in</td></tr>
+          <tr><td class="num">300</td><td class="num">1.19 m</td><td class="num">0.72 m</td><td><span class="tag ok">UPRIGHT</span></td><td>Slowing near the ball</td></tr>
+          <tr class="win"><td class="num">~320</td><td class="num">0.86 m</td><td class="num">0.73 m</td><td><span class="tag ok">STOP</span></td><td>Stops 12 cm from the ball surface</td></tr>
+          <tr><td class="num">400</td><td class="num">0.63 m</td><td class="num">0.73 m</td><td><span class="tag ok">UPRIGHT</span></td><td>Standing, balanced, facing the ball</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="col" style="margin-top:16px">
+      <p>Torso height holds at ~0.72&nbsp;m and posture stays upright the entire way — <strong>it walks ~4&nbsp;m, stops 12&nbsp;cm short of the ball, and stands there balanced.</strong> No crawling, no collision, no fall.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-no">05</span><h2>How the stopping works</h2></div>
+    <div class="col">
+      <p>The behaviour is split into two layers. This matters because it's the foundation everything next builds on.</p>
+    </div>
+    <div class="flow">
+      <div class="node">
+        <div class="k">High level · a rule</div>
+        <div class="t">Where to go</div>
+        <div class="d">Measures the distance to the ball and outputs a velocity command — "walk forward," ramping to "stop" as it nears the ball.</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="node">
+        <div class="k">Low level · the RL policy</div>
+        <div class="t">How to move</div>
+        <div class="d">Turns that velocity command into joint torques that walk — or, on a zero command, stand balanced. This is the part we trained.</div>
+      </div>
+    </div>
+    <div class="col" style="margin-top:16px">
+      <p>The policy never "sees" the ball. It only ever receives a velocity command. When the high-level rule zeroes that command near the obstacle, the policy holds the robot upright and still — which is why it stops <em>and</em> stays standing.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="col">
+      <p class="eyebrow">What you have now</p>
+      <h2>Deliverables</h2>
+    </div>
+    <div class="panel">
+      <div class="files">
+        <div class="file"><span class="fn">r1_walk_train.py</span><span class="fd">Trains &amp; evaluates the walking policy (<code>--eval</code> reports upright %)</span></div>
+        <div class="file"><span class="fn">r1_cell_walk.py</span><span class="fd">One physics R1 walking to the ball in the KUKA cell</span></div>
+        <div class="file"><span class="fn">r1_cell.py</span><span class="fd">Kinematic version — glides &amp; stops, can't fall (visual only)</span></div>
+        <div class="file"><span class="fn">model_3999.pt</span><span class="fd">The trained walking policy · logs/rsl_rl/r1_flat_v2/</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="col">
+      <p class="eyebrow">Lessons</p>
+      <h2>What this taught us</h2>
+      <ul class="clean">
+        <li><b>Never trust reward alone.</b> A rising reward can mean a better <i>cheat</i>. Always measure the behaviour you actually want — here, the fraction of time spent upright.</li>
+        <li><b>Reward hacking is real and subtle.</b> The crawl wasn't a bug in the code; it was the honest optimum of a reward that forgot to require standing.</li>
+        <li><b>Termination design shapes behaviour</b> as much as rewards. Ending the episode on a fall is what forced walking to emerge.</li>
+        <li><b>Iteration count was a red herring.</b> The first instinct — "train longer" — would never have fixed a policy optimizing the wrong thing.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="col">
+      <p class="eyebrow">Next</p>
+      <h2>Where this goes</h2>
+      <ul class="clean">
+        <li><b>Learned obstacle avoidance.</b> Right now the <i>walking</i> is RL but the <i>decision to stop</i> is a hand-written rule. Next: train a high-level navigation policy that perceives the ball and learns to slow and stop on its own — riding on top of this walker.</li>
+        <li><b>The HuggingFace / LeRobot pipeline.</b> Record the R1's walk as a LeRobot-format dataset — the bridge toward fine-tuning NVIDIA's GR00T foundation model on this robot.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    R1-in-the-Cell · Isaac Sim 5.1 / Isaac Lab · PPO (rsl_rl) · RTX 5070 Ti — trained policy r1_flat_v2 / model_3999, mean reward +30, 100% upright.
+  </footer>
+
+</div>

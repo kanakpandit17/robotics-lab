@@ -1,0 +1,115 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="maira7M">
+
+<!-- Link 0 -->
+<xacro:property name="mass_0"  value = "2.133" />
+<xacro:property name="cog_x_0" value = "0.0" />
+<xacro:property name="cog_y_0" value = "0.0" />
+<xacro:property name="cog_z_0" value = "0.0" />
+<xacro:property name="i_xx_0"  value = "0.01844708" />
+<xacro:property name="i_xy_0"  value = "0.0" />
+<xacro:property name="i_xz_0"  value = "0.0" />
+<xacro:property name="i_yy_0"  value = "0.01767638" />
+<xacro:property name="i_yz_0"  value = "0.0" />
+<xacro:property name="i_zz_0"  value = "0.02328992" />
+
+
+
+<!-- Link 1 -->
+<xacro:property name="mass_1"  value = "10.458" />
+<xacro:property name="cog_x_1" value = "0.013845" />
+<xacro:property name="cog_y_1" value = "0.316366" />
+<xacro:property name="cog_z_1" value = "0.0" />
+<xacro:property name="i_xx_1"  value = "0.10982041" />
+<xacro:property name="i_xy_1"  value = "0.0" />
+<xacro:property name="i_xz_1"  value = "0.0" />
+<xacro:property name="i_yy_1"  value = "0.10042513" />
+<xacro:property name="i_yz_1"  value = "0.0" />
+<xacro:property name="i_zz_1"  value = "0.15115639" />
+
+
+
+<!-- Link 2 -->
+<xacro:property name="mass_2"  value = "14.8" />
+<xacro:property name="cog_x_2" value = "-0.05" />
+<xacro:property name="cog_y_2" value = "0.06" />
+<xacro:property name="cog_z_2" value = "-0.035" />
+<xacro:property name="i_xx_2"  value = "0.11329157" />
+<xacro:property name="i_xy_2"  value = "0.0" />
+<xacro:property name="i_xz_2"  value = "0.0" />
+<xacro:property name="i_yy_2"  value = "0.07692809" />
+<xacro:property name="i_yz_2"  value = "0.0" />
+<xacro:property name="i_zz_2"  value = "0.09186348" />
+
+
+
+<!-- Link 3 -->
+<xacro:property name="mass_3"  value = "11.0" />
+<xacro:property name="cog_x_3" value = "-0.01" />
+<xacro:property name="cog_y_3" value = "0.45999999999999996" />
+<xacro:property name="cog_z_3" value = "0.0" />
+<xacro:property name="i_xx_3"  value = "0.34696381" />
+<xacro:property name="i_xy_3"  value = "0.0" />
+<xacro:property name="i_xz_3"  value = "0.0" />
+<xacro:property name="i_yy_3"  value = "0.07733302" />
+<xacro:property name="i_yz_3"  value = "0.0" />
+<xacro:property name="i_zz_3"  value = "0.39091108" />
+
+
+
+<!-- Link 4 -->
+<xacro:property name="mass_4"  value = "5.5" />
+<xacro:property name="cog_x_4" value = "-0.03" />
+<xacro:property name="cog_y_4" value = "-0.01" />
+<xacro:property name="cog_z_4" value = "0.0" />
+<xacro:property name="i_xx_4"  value = "0.02342021" />
+<xacro:property name="i_xy_4"  value = "0.0" />
+<xacro:property name="i_xz_4"  value = "0.0" />
+<xacro:property name="i_yy_4"  value = "0.01854631" />
+<xacro:property name="i_yz_4"  value = "0.0" />
+<xacro:property name="i_zz_4"  value = "0.02233090" />
+
+
+
+<!-- Link 5 -->
+<xacro:property name="mass_5"  value = "8.0" />
+<xacro:property name="cog_x_5" value = "-0.06" />
+<xacro:property name="cog_y_5" value = "0.36999999999999994" />
+<xacro:property name="cog_z_5" value = "0.0" />
+<xacro:property name="i_xx_5"  value = "0.28237266" />
+<xacro:property name="i_xy_5"  value = "0.0" />
+<xacro:property name="i_xz_5"  value = "0.0" />
+<xacro:property name="i_yy_5"  value = "0.04470191" />
+<xacro:property name="i_yz_5"  value = "0.0" />
+<xacro:property name="i_zz_5"  value = "0.30556509" />
+
+
+
+<!-- Link 6 -->
+<xacro:property name="mass_6"  value = "4.5" />
+<xacro:property name="cog_x_6" value = "-0.02" />
+<xacro:property name="cog_y_6" value = "-0.04" />
+<xacro:property name="cog_z_6" value = "-0.01" />
+<xacro:property name="i_xx_6"  value = "0.02305525" />
+<xacro:property name="i_xy_6"  value = "0.0" />
+<xacro:property name="i_xz_6"  value = "0.0" />
+<xacro:property name="i_yy_6"  value = "0.01009598" />
+<xacro:property name="i_yz_6"  value = "0.0" />
+<xacro:property name="i_zz_6"  value = "0.02308483" />
+
+
+
+<!-- Link 7 -->
+<xacro:property name="mass_7"  value = "1.173" />
+<xacro:property name="cog_x_7" value = "0.0" />
+<xacro:property name="cog_y_7" value = "0.16499999999999998" />
+<xacro:property name="cog_z_7" value = "0.0" />
+<xacro:property name="i_xx_7"  value = "0.00127909" />
+<xacro:property name="i_xy_7"  value = "0.0" />
+<xacro:property name="i_xz_7"  value = "0.0" />
+<xacro:property name="i_yy_7"  value = "0.00165420" />
+<xacro:property name="i_yz_7"  value = "0.0" />
+<xacro:property name="i_zz_7"  value = "0.00127909" />
+
+
+</robot>

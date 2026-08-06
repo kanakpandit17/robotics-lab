@@ -1,0 +1,70 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="maira7M">
+
+<!-- base -->
+<xacro:property name="x0" value = "0" />
+<xacro:property name="y0" value = "0" />
+<xacro:property name="z0" value = "0" />
+<xacro:property name="R0" value = "0" />
+<xacro:property name="P0" value = "0" />
+<xacro:property name="Y0" value = "1.5707963267948966" />
+<!-- Joint 1 -->
+<xacro:property name="x1" value = "0" />
+<xacro:property name="y1" value = "0" />
+<xacro:property name="z1" value = "0" />
+<xacro:property name="R1" value = "1.5707963267948966" />
+<xacro:property name="P1" value = "0" />
+<xacro:property name="Y1" value = "0" />
+<!-- Joint 2 -->
+<xacro:property name="x2" value = "0" />
+<xacro:property name="y2" value = "0.438" />
+<xacro:property name="z2" value = "0" />
+<xacro:property name="R2" value = "0" />
+<xacro:property name="P2" value = "0" />
+<xacro:property name="Y2" value = "4.8965276278067904e-12" />
+<!-- Joint 3 -->
+<xacro:property name="x3" value = "0" />
+<xacro:property name="y3" value = "0" />
+<xacro:property name="z3" value = "0" />
+<xacro:property name="R3" value = "0" />
+<xacro:property name="P3" value = "0" />
+<xacro:property name="Y3" value = "-4.8965276278067904e-12" />
+<!-- Joint 4 -->
+<xacro:property name="x4" value = "0" />
+<xacro:property name="y4" value = "0.7" />
+<xacro:property name="z4" value = "0" />
+<xacro:property name="R4" value = "0" />
+<xacro:property name="P4" value = "0" />
+<xacro:property name="Y4" value = "4.8965276278067904e-12" />
+<!-- Joint 5 -->
+<xacro:property name="x5" value = "0" />
+<xacro:property name="y5" value = "0" />
+<xacro:property name="z5" value = "0" />
+<xacro:property name="R5" value = "0" />
+<xacro:property name="P5" value = "0" />
+<xacro:property name="Y5" value = "-4.8965276278067904e-12" />
+<!-- Joint 6 -->
+<xacro:property name="x6" value = "0" />
+<xacro:property name="y6" value = "0.7" />
+<xacro:property name="z6" value = "0" />
+<xacro:property name="R6" value = "0" />
+<xacro:property name="P6" value = "0" />
+<xacro:property name="Y6" value = "4.8965276278067904e-12" />
+<!-- Joint 7 -->
+<xacro:property name="x7" value = "0" />
+<xacro:property name="y7" value = "0" />
+<xacro:property name="z7" value = "0" />
+<xacro:property name="R7" value = "0" />
+<xacro:property name="P7" value = "0" />
+<xacro:property name="Y7" value = "-4.8965276278067904e-12" />
+
+<!-- to flange -->
+<xacro:property name="x8" value = "0" />
+<xacro:property name="y8" value = "0.115" />
+<xacro:property name="z8" value = "0" />
+<xacro:property name="R8" value = "-1.5707963267948966" />
+<xacro:property name="P8" value = "-1.5707963267948966" />
+<xacro:property name="Y8" value = "0" />
+
+
+</robot>

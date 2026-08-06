@@ -1,0 +1,78 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro"
+       name="maira7M" >
+
+  <xacro:arg name="prefix" default="maira7M_"/>
+  <xacro:arg name="parameter_file_name" default="maira7M_kinematic_parameters_nominal"/>
+  <xacro:arg name="dynamic_parameter_file_name" default="maira7M_dynamic_parameters_clean"/>
+  <xacro:arg name="limits_file_name" default="maira7M_limits"/>
+  <xacro:property name="controllers_file" value="/home/zaryab_khan/maira_ws/config/maira_controllers.yaml"/>
+  <xacro:property name="gz_ros2_control_plugin" value="/opt/ros/jazzy/lib/libgz_ros2_control-system.so"/>
+
+
+  <xacro:include filename="/home/zaryab_khan/maira_ws/src/neura_robot_description/maira7M/urdf/maira7M_macrowithcam.xacro"/>
+
+  
+  <xacro:maira7M_robot prefix="$(arg prefix)"
+                    parameter_file_name = "$(arg parameter_file_name)"
+                    dynamic_parameter_file_name =  "$(arg dynamic_parameter_file_name)"
+                    limits_file_name = "$(arg limits_file_name)" />
+
+  <link name="world" />
+  <joint name="world_joint" type="fixed">
+    <parent link="world" />
+    <child link = "$(arg prefix)root_link" />
+    <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0" />
+  </joint>
+
+  <ros2_control name="GazeboSimSystem" type="system">
+    <hardware>
+      <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+    </hardware>
+
+    <joint name="$(arg prefix)joint1">
+      <command_interface name="position"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="$(arg prefix)joint2">
+      <command_interface name="position"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="$(arg prefix)joint3">
+      <command_interface name="position"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="$(arg prefix)joint4">
+      <command_interface name="position"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="$(arg prefix)joint5">
+      <command_interface name="position"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="$(arg prefix)joint6">
+      <command_interface name="position"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="$(arg prefix)joint7">
+      <command_interface name="position"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+  </ros2_control>
+
+  <gazebo>
+    <plugin filename="${gz_ros2_control_plugin}" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+      <parameters>${controllers_file}</parameters>
+      <robot_param>robot_description</robot_param>
+      <robot_param_node>robot_state_publisher</robot_param_node>
+    </plugin>
+  </gazebo>
+
+</robot>

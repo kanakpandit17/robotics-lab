@@ -1,0 +1,199 @@
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif; color: #1c2230; line-height: 1.5; font-size: 10.5pt; margin: 0; }
+  h1 { font-size: 25pt; margin: 0 0 2px; color: #0b2545; letter-spacing: -0.3px; }
+  h2 { font-size: 15pt; color: #0b2545; border-bottom: 2px solid #13a89e; padding-bottom: 4px; margin: 26px 0 10px; }
+  h3 { font-size: 11.5pt; color: #13635c; margin: 16px 0 6px; }
+  p { margin: 6px 0; }
+  code, .mono { font-family: "Cascadia Code", "Consolas", monospace; font-size: 9pt; }
+  code { background: #eef3f6; padding: 1px 4px; border-radius: 3px; color: #0b2545; }
+  pre { background: #0b2545; color: #d9e6f2; padding: 10px 12px; border-radius: 6px; font-family: "Cascadia Code","Consolas",monospace; font-size: 8.6pt; line-height: 1.45; overflow-x: auto; white-space: pre-wrap; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 9.3pt; }
+  th, td { border: 1px solid #cfd8e0; padding: 5px 8px; text-align: left; vertical-align: top; }
+  th { background: #0b2545; color: #fff; font-weight: 600; }
+  tr:nth-child(even) td { background: #f4f8fa; }
+  .cover { border-bottom: 4px solid #13a89e; padding-bottom: 16px; margin-bottom: 8px; }
+  .tag { display: inline-block; background: #13a89e; color: #fff; font-size: 8.5pt; font-weight: 600; padding: 2px 9px; border-radius: 20px; letter-spacing: 0.4px; }
+  .sub { color: #47566b; font-size: 12pt; margin-top: 6px; }
+  .meta { color: #6b7a90; font-size: 9pt; margin-top: 10px; }
+  .box { border-left: 4px solid #13a89e; background: #f0faf9; padding: 8px 12px; border-radius: 0 6px 6px 0; margin: 10px 0; page-break-inside: avoid; }
+  .box.warn { border-left-color: #e2a53a; background: #fdf7ec; }
+  .box.ok { border-left-color: #2fae66; background: #eefaf1; }
+  .kpi { display: flex; gap: 10px; margin: 10px 0; }
+  .kpi div { flex: 1; border: 1px solid #cfd8e0; border-radius: 6px; padding: 8px 10px; background: #f7fafc; }
+  .kpi .n { font-size: 16pt; font-weight: 700; color: #0b2545; }
+  .kpi .l { font-size: 8pt; color: #6b7a90; text-transform: uppercase; letter-spacing: 0.5px; }
+  .section { page-break-inside: avoid; }
+  ul { margin: 6px 0; padding-left: 20px; }
+  li { margin: 3px 0; }
+  .foot { margin-top: 26px; border-top: 1px solid #cfd8e0; padding-top: 8px; color: #8494a8; font-size: 8pt; }
+  .pb { page-break-before: always; }
+</style>
+
+<div class="cover">
+  <span class="tag">TECHNICAL REPORT · MILESTONE 1</span>
+  <h1>Autonomous Humanoid Robot Simulation</h1>
+  <div class="sub">Chat-controlled &amp; autonomous navigation of the Galaxea&nbsp;R1 in a digital-twin ARENA2036 shopfloor, built in NVIDIA Isaac&nbsp;Sim</div>
+  <div class="meta">Platform: NVIDIA Isaac Sim 5.1 · Isaac Lab · Windows 11 · RTX 5070 Ti (Blackwell)&nbsp;&nbsp;|&nbsp;&nbsp;Date: 10 July 2026</div>
+</div>
+
+<div class="section">
+<h2>1. Executive Summary</h2>
+<p>This milestone delivers an end-to-end, physics-based simulation of the <b>Galaxea R1</b> &mdash; a wheeled, dual-arm humanoid mobile manipulator &mdash; operating inside a <b>digital twin of the ARENA2036 shopfloor</b> reconstructed from industrial CAD data. The robot is driven through a <b>natural-language chat interface</b> and can also perform <b>autonomous point-to-goal navigation</b>. The entire system runs locally on a single consumer GPU.</p>
+<p>Concretely, the following capabilities were designed, implemented, and verified:</p>
+<ul>
+  <li><b>Digital twin</b>: a 129&nbsp;m &times; 46&nbsp;m factory floor and a KUKA robotic cell imported from STEP CAD; the Galaxea R1 imported from URDF; all composed into one metric-accurate USD scene.</li>
+  <li><b>Language teleoperation</b>: a browser chat UI that turns text (&ldquo;drive forward&rdquo;, &ldquo;wave&rdquo;, &ldquo;zoom in&rdquo;) into live robot and camera commands.</li>
+  <li><b>Autonomous navigation</b>: R1 self-drives to a goal marker and stops on arrival &mdash; reaching targets in <i>any</i> direction despite a &plusmn;90&deg; steering limit.</li>
+  <li><b>Safety &amp; robustness</b>: a physical collider fence confining the robot to its cell, a software runaway-stop, and a one-command &ldquo;stand up&rdquo; self-recovery.</li>
+  <li><b>An auto-following camera</b> so the operator never has to fight the 3-D viewport.</li>
+</ul>
+<div class="kpi">
+  <div><div class="n">26</div><div class="l">R1 controllable DoF</div></div>
+  <div><div class="n">0.8 m</div><div class="l">Nav goal tolerance</div></div>
+  <div><div class="n">100%</div><div class="l">Goals reached (all directions)</div></div>
+  <div><div class="n">1</div><div class="l">Consumer GPU (16 GB)</div></div>
+</div>
+</div>
+
+<div class="section">
+<h2>2. System Architecture</h2>
+<p>The system is a two-process design communicating through a shared JSON command file. This decouples the (lightweight) user interface from the (GPU-heavy) simulator and keeps the control contract explicit.</p>
+<pre>  ┌──────────────────────────────┐        ┌───────────────────────────────────┐
+  │  CHAT UI  (Gradio, browser)  │  JSON  │  ISAAC SIM  (r1_chat_sim.py)      │
+  │  http://127.0.0.1:7860        │ ─────▶ │  • R1 articulation (26 DoF)       │
+  │  text → {vx, turn, arm,       │ r1_cmd │  • PhysX physics + cell fence     │
+  │  cam, stand, nav} command      │ .json  │  • follow-camera + goal marker    │
+  └──────────────────────────────┘        │  • teleop + autonomous nav loop   │
+                                            └───────────────────────────────────┘</pre>
+<p>The simulator reads the command file every physics frame and applies it to the robot; the UI writes the file whenever the user issues a command. Because the contract is a plain JSON document, the language layer can later be swapped for a large-language-model planner without touching the simulator.</p>
+</div>
+
+<div class="section">
+<h2>3. Hardware &amp; Software Environment</h2>
+<table>
+  <tr><th>Layer</th><th>Component</th><th>Notes</th></tr>
+  <tr><td>GPU</td><td>NVIDIA GeForce RTX 5070 Ti, 16 GB (Blackwell, sm_120)</td><td>Driver 591.74 (see §6)</td></tr>
+  <tr><td>CPU / RAM</td><td>Intel Core Ultra 9 285K · 64 GB</td><td>Windows 11</td></tr>
+  <tr><td>Simulator</td><td>NVIDIA Isaac Sim 5.1.0</td><td>USD / PhysX / RTX renderer</td></tr>
+  <tr><td>Learning framework</td><td>NVIDIA Isaac Lab (main)</td><td>used for prior G1 RL work; basis for Milestone 2</td></tr>
+  <tr><td>Python env</td><td>Conda <code>env_isaaclab</code> · Python 3.11 · PyTorch 2.7.0+cu128</td><td>cu128 required for Blackwell</td></tr>
+  <tr><td>UI</td><td>Gradio 6.20</td><td>local web chat interface</td></tr>
+  <tr><td>Robot model</td><td>Galaxea R1 (open URDF)</td><td>wheeled dual-arm humanoid</td></tr>
+</table>
+</div>
+
+<div class="section pb">
+<h2>4. Building the Digital Twin</h2>
+
+<h3>4.1 The Galaxea R1 robot</h3>
+<p>R1 is a <b>three-wheel steering (&ldquo;vector&rdquo;) mobile base</b> carrying two 6-DoF arms, a 4-DoF torso, and grippers &mdash; <b>1.73 m</b> tall, 26 actuated joints. It was imported from the manufacturer&rsquo;s open URDF and converted to USD with Isaac Lab&rsquo;s URDF importer. The URDF referenced its meshes with ROS <code>package://</code> paths that the importer could not resolve; these were rewritten to absolute file paths, after which all 34 collision/visual meshes (~89 MB) imported cleanly.</p>
+
+<h3>4.2 The shopfloor &amp; KUKA cell (CAD → USD)</h3>
+<p>The environment was supplied as <b>STEP</b> CAD files (a 129 m factory hall and a KUKA robotic cell). Isaac Sim&rsquo;s general asset converter rejected STEP; the correct path is the <b>HOOPS&nbsp;Core</b> CAD converter, invoked directly. All three STEP files tessellated to USD successfully:</p>
+<table>
+  <tr><th>Source (STEP)</th><th>Output (USD)</th><th>Measured size</th></tr>
+  <tr><td>ARENA2036 shopfloor (open)</td><td>arena_no_walls.usd</td><td>129 &times; 46 &times; 8 m</td></tr>
+  <tr><td>ARENA2036 shopfloor (full)</td><td>arena_full.usd</td><td>129 &times; 46 &times; 8 m</td></tr>
+  <tr><td>KUKA assembly</td><td>kuka_assembly.usd</td><td>7.9 &times; 7.3 &times; 2.9 m</td></tr>
+</table>
+
+<h3>4.3 Scene composition</h3>
+<p>Inspection confirmed all assets shared metric units and a common CAD frame &mdash; the KUKA was already positioned inside the shopfloor coordinate system. The three assets were referenced into a single stage, lifted so the floor sits at <code>z = 0</code>, lit, and R1 placed beside the KUKA. A follow-camera was authored to frame the working area automatically.</p>
+</div>
+
+<div class="section">
+<h2>5. Milestone 1 — Control &amp; Autonomy</h2>
+
+<h3>5.1 Language teleoperation</h3>
+<p>A rule-based parser maps free text to a persistent command state. Supported intents: base motion (<code>drive forward/back</code>, <code>turn</code>, <code>stop</code>), arm poses (<code>wave</code>, <code>raise</code>, <code>reach</code>, <code>home</code>), camera (<code>zoom in/out</code>, <code>look left/right</code>, <code>overview</code>), <code>stand up</code>, and <code>go to goal</code>. The simulator applies base motion as wheel velocity + steering targets and arm poses as joint-position targets on the 26-DoF articulation.</p>
+
+<h3>5.2 Auto-following camera</h3>
+<p>To remove the burden of manual 3-D navigation (especially on a trackpad), the viewport camera is recomputed every frame to track R1&rsquo;s live position, with operator-adjustable distance, height, and orbit angle driven from the same chat interface.</p>
+
+<h3>5.3 Containment &amp; safety</h3>
+<p>Because the imported CAD is visual-only (no colliders), the robot originally passed through walls. A <b>collider &ldquo;safety fence&rdquo;</b> (four 3 m walls) was added around the KUKA cell, backed by a software runaway-stop that zeroes the wheels if the robot ever exits the cell bounds. Verified: commanded to drive at a wall, R1 halts at the boundary (x &asymp; &minus;4.4 m) instead of crossing.</p>
+
+<h3>5.4 Stand-up self-recovery</h3>
+<p>A tall robot on a three-wheel base can topple during aggressive maneuvers. The clean upright pose is captured at start-up; a <code>stand up</code> command (button + text) resets R1 to that pose with motion and arms zeroed &mdash; instant recovery. Driving speed was also softened to reduce tipping.</p>
+
+<h3>5.5 Autonomous navigation &mdash; the core result</h3>
+<p>On command, the simulator spawns a random <b>goal marker</b> inside the cell and engages a closed-loop controller: each frame it measures R1&rsquo;s pose, computes the bearing to the goal, and commands steering + wheel velocity, halting within the 0.8 m tolerance.</p>
+<div class="box warn"><b>Challenge:</b> the steering joints are hard-limited to <b>&plusmn;90&deg;</b> in the URDF, so R1 cannot point at goals behind it &mdash; naive control made it <i>orbit</i> unreachable targets at ~2.5 m.</div>
+<div class="box ok"><b>Solution (omnidirectional trick):</b> combine the &plusmn;90&deg; steering cone with <b>forward <i>or reverse</i> wheels</b>. For a goal behind the robot, steer to the mirror angle (into the cone) and drive backward. This makes R1 effectively holonomic without altering the robot model.</div>
+<p>Verified on a goal directly behind R1 (bearing +2.17 rad): distance converged monotonically 4.74 m → 0.80 m and the goal was reached, using reverse drive throughout.</p>
+</div>
+
+<div class="section pb">
+<h2>6. Engineering Challenges Solved</h2>
+<p>Reaching a working system on brand-new Blackwell hardware and with a custom robot surfaced a series of non-obvious issues. Each was diagnosed to root cause and fixed:</p>
+<table>
+  <tr><th>Symptom</th><th>Root cause</th><th>Fix</th></tr>
+  <tr><td>Isaac Sim GUI / renderer access-violation crash</td><td>NVIDIA 595.x driver regression on Blackwell + Isaac Sim 5.1 RTX engine</td><td>Roll driver back to 591.74</td></tr>
+  <tr><td>PyTorch could not use the GPU</td><td>Default CPU-only wheel; Blackwell needs sm_120</td><td>Install torch 2.7.0 <b>+cu128</b></td></tr>
+  <tr><td>Native crash importing <code>tensordict</code> inside Kit</td><td>ABI mismatch with pinned torch 2.7</td><td>Pin <code>tensordict 0.8.3</code></td></tr>
+  <tr><td>Scene scripts crashed on <code>h5py</code> (0xc0000139)</td><td>Isaac Lab&rsquo;s task extension loads h5py, whose DLL collides with Kit&rsquo;s bundled HDF5</td><td>Use a plain <code>SimulationApp</code> (no Isaac Lab extensions) for scene tools</td></tr>
+  <tr><td>STEP files &ldquo;unsupported import format&rdquo;</td><td>General asset converter does not handle CAD</td><td>Call the <b>HOOPS Core</b> converter directly</td></tr>
+  <tr><td>R1 meshes failed to resolve</td><td>ROS <code>package://</code> paths, no ROS_PACKAGE_PATH</td><td>Rewrite mesh refs to absolute paths</td></tr>
+  <tr><td>R1 orbited unreachable goals</td><td>&plusmn;90&deg; steer joint limit</td><td>Forward/reverse omnidirectional controller</td></tr>
+  <tr><td>Robot fell through the floor / left the cell</td><td>CAD meshes are visual-only (no colliders)</td><td>Add collider fence + software runaway-stop</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h2>7. Verified Results</h2>
+<div class="box ok">
+<ul style="margin:0">
+  <li><b>Teleoperation</b>: base, arms, and camera all respond to chat commands (confirmed via joint-target &amp; pose logs).</li>
+  <li><b>Autonomous navigation</b>: goals reached to 0.80 m in all directions, including behind the robot via reverse drive.</li>
+  <li><b>Containment</b>: robot halts at the cell boundary (x &asymp; &minus;4.4 m) instead of passing through.</li>
+  <li><b>Self-recovery</b>: <code>stand up</code> restores the upright pose on demand.</li>
+  <li><b>Footprint</b>: entire system runs within the 16 GB GPU alongside the RTX viewport.</li>
+</ul>
+</div>
+</div>
+
+<div class="section">
+<h2>8. Roadmap</h2>
+<p>Milestone 1 establishes a <i>classical</i> (hand-coded) baseline. The project then advances toward learned control and foundation models &mdash; each stage producing the robot demonstration data the next stage needs.</p>
+<table>
+  <tr><th>#</th><th>Milestone</th><th>Robot learns to…</th><th>Primary tool</th><th>Status</th></tr>
+  <tr><td>1</td><td>Autonomous navigation (baseline)</td><td>self-drive to a goal, stay in cell</td><td>Isaac Sim</td><td><b>Complete</b></td></tr>
+  <tr><td>2</td><td>Reinforcement-learning navigation</td><td>learn goal-reaching from scratch (PPO, parallel envs)</td><td>Isaac Lab RL</td><td>Next</td></tr>
+  <tr><td>3</td><td>Obstacle avoidance</td><td>reach goals without hitting the KUKA</td><td>Isaac Lab</td><td>Planned</td></tr>
+  <tr><td>4</td><td>Manipulation</td><td>reach / pick objects with the arms</td><td>Isaac Lab</td><td>Planned</td></tr>
+  <tr><td>5</td><td>Foundation models</td><td>generalist policies from R1 data</td><td>GR00T + Cosmos</td><td>Future</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h2>9. How to Run</h2>
+<p>Two processes; both use the <code>env_isaaclab</code> environment.</p>
+<pre># 1) start the simulator (opens the Isaac Sim window)
+conda activate env_isaaclab
+cd C:\Users\aimat\Desktop\humanoid\IsaacLab
+.\isaaclab.bat -p C:\Users\aimat\Desktop\humanoid\r1_chat_sim.py
+
+# 2) start the chat UI (second terminal)
+conda activate env_isaaclab
+python C:\Users\aimat\Desktop\humanoid\r1_chat_ui.py
+#    → open http://127.0.0.1:7860  → type "go to goal", "drive forward", "wave", "stand up"</pre>
+</div>
+
+<div class="section">
+<h2>10. File Inventory</h2>
+<table>
+  <tr><th>File</th><th>Purpose</th></tr>
+  <tr><td><code>r1_chat_sim.py</code></td><td>Isaac Sim controller: scene, physics, R1 articulation, follow-camera, teleop + autonomous nav</td></tr>
+  <tr><td><code>r1_chat_ui.py</code></td><td>Gradio chat interface: text → JSON command</td></tr>
+  <tr><td><code>compose_scene.py</code></td><td>Builds the shopfloor + KUKA + R1 scene (scene.usd)</td></tr>
+  <tr><td><code>convert_cad.py</code></td><td>STEP → USD via HOOPS Core</td></tr>
+  <tr><td><code>imported_cad/</code></td><td>Converted USD assets (arena, kuka, r1, scene)</td></tr>
+  <tr><td><code>galaxea_urdf/R1/</code></td><td>Galaxea R1 URDF + meshes</td></tr>
+</table>
+</div>
+
+<div class="foot">
+  Autonomous Humanoid Robot Simulation &mdash; Milestone 1 Technical Report · Generated 10 July 2026 · NVIDIA Isaac Sim 5.1 on RTX 5070 Ti.
+</div>
