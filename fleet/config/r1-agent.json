@@ -1,0 +1,17 @@
+{
+  "robot_id": "r1-01",
+  "adapter": "unitree_r1",
+  "broker": {
+    "transport": "mqtt",
+    "host": "141.70.221.54",
+    "port": 1883
+  },
+  "agent": {
+    "state_period_s": 5.0
+  },
+  "robot": {
+    "simulate": false,
+    "iface": "auto",
+    "walking_enabled": false
+  }
+}

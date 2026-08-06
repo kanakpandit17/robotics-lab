@@ -1,0 +1,9 @@
+{
+  "broker": {
+    "transport": "mqtt",
+    "host": "127.0.0.1",
+    "port": 1883,
+    "keepalive": 20
+  },
+  "discovery_s": 2.0
+}

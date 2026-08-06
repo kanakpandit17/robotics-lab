@@ -1,0 +1,37 @@
+# Secrets ---------------------------------------------------------------
+# Self-signed TLS pair for the VR page's HTTPS server. Regenerate locally;
+# never commit a private key, even a throwaway one.
+certs/
+
+# Environments and build artefacts ---------------------------------------
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.so
+.pytest_cache/
+*.egg-info/
+
+# Third-party SDKs, fetched not authored ---------------------------------
+vendor/
+
+# Capture data -- large, regenerable, and specific to one session ---------
+# 284 MB of frames. Keep the pipeline, not the pixels.
+scans/
+captures/
+*.pcd
+*.bag
+
+# Logs and scratch -------------------------------------------------------
+*.log
+cyclonedds.log
+/tmp/
+fleet.zip
+dds-peers.txt
+
+# OS ---------------------------------------------------------------------
+.DS_Store
+
+# Kept deliberately ------------------------------------------------------
+# paths/      recorded routes -- small, and they are measurement evidence
+# *-report.txt  probe output that documents what this robot actually does

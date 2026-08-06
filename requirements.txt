@@ -1,0 +1,9 @@
+# Core viewer. Python 3.12 (opencv has no arm64 wheel for 3.14 yet).
+opencv-python>=4.9
+numpy>=1.26
+
+# Optional: only needed for the Unitree DDS backend (--source dds).
+# cyclonedds is pinned by Unitree and usually needs a source build on macOS;
+# see README "DDS backend" before installing.
+#   cyclonedds==0.10.2
+#   unitree_sdk2py @ git+https://github.com/unitreerobotics/unitree_sdk2_python.git

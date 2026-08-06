@@ -1,0 +1,65 @@
+{
+  "_notes": [
+    "Bound against neurapy 5.1.85 / maira7M (7 dof).",
+    "home_point and the names under poses are looked up in the robot's own",
+    "point database first -- teach them on the pendant and reference them by",
+    "name, rather than pasting joint angles here. A list of 7 radians also",
+    "works if you prefer.",
+    "Set simulate:false and run agent.main WITHOUT --simulate to use hardware.",
+    "skills{} is optional: fill it in to route PickObject through",
+    "neurapy_ai_skills vision picking instead of taught points."
+  ],
+  "robot_id": "maira-01",
+  "adapter": "maira",
+  "broker": {
+    "transport": "mqtt",
+    "host": "141.70.221.54",
+    "port": 1883,
+    "keepalive": 20
+  },
+  "agent": {
+    "state_period_s": 1.0,
+    "stop_on_disconnect_s": null
+  },
+  "robot": {
+    "simulate": false,
+    "max_speed": 0.15,
+    "acceleration": 0.15,
+    "joint_speed_percent": 25,
+    "enable_safety": true,
+    "home_point": "Home",
+    "allow_taught_points": true,
+    "poses": {},
+    "gripper": {
+      "grasp": {},
+      "release": {}
+    },
+    "programs": {},
+    "assemblies": {
+      "battery_pack": [
+        {
+          "command": "MoveHome",
+          "params": {}
+        },
+        {
+          "command": "PickObject",
+          "params": {
+            "object": "battery"
+          }
+        },
+        {
+          "command": "PlaceObject",
+          "params": {
+            "location": "jig"
+          }
+        }
+      ]
+    },
+    "auto_switch_to_automatic": false,
+    "ros_bridge": {
+      "host": "192.168.2.14",
+      "port": 9090,
+      "throttle_ms": 100
+    }
+  }
+}
