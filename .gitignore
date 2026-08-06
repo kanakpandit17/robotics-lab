@@ -1,23 +1,36 @@
-# ===== Isaac Lab framework (install separately on the new machine) =====
-IsaacLab/
-
-# ===== Python envs / caches =====
-e57venv/
-*venv*/
-__pycache__/
-*.pyc
-.ipynb_checkpoints/
-
-# ===== SECRETS (never commit) =====
+# ===== Secrets (never commit) =====
 certs/
 *.pem
 *.key
 
-# ===== Large datasets / generated data (regenerate on the new machine) =====
+# ===== Isaac Lab framework (install separately on the new machine) =====
+IsaacLab/
+
+# ===== Python envs / caches / build =====
+e57venv/
+.venv/
+venv/
+*venv*/
+__pycache__/
+*.pyc
+*.py[cod]
+*.so
+.pytest_cache/
+*.egg-info/
+.ipynb_checkpoints/
+
+# ===== Third-party SDKs, fetched not authored =====
+vendor/
+
+# ===== Large datasets / capture data (regenerable, session-specific) =====
 lerobot_*/
 loop_out/
 galaxea_urdf/
+scans/
+captures/
 *.e57
+*.pcd
+*.bag
 
 # ===== Regenerable / heavy outputs =====
 column_A_scan_109.usd
@@ -25,12 +38,16 @@ faro_scan_1.usd
 *.mp4
 predicted_future.mp4
 
-# ===== Run logs / scratch =====
+# ===== Logs / scratch =====
 *.log
+cyclonedds.log
 *.err
 *_log.txt
 *.tmp
 *.dmp
+/tmp/
+fleet.zip
+dds-peers.txt
 
 # ===== OS junk =====
 Thumbs.db

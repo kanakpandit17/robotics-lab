@@ -1,0 +1,22 @@
+python arm_actions.py --action right_hand_up --go	right hand up
+python arm_actions.py --action both_hands_up --go	both hands up
+python arm_actions.py --action extend_right_arm_forward --go	right arm straight out
+python arm_actions.py --action wave_above_head --go	wave, high
+python arm_actions.py --action wave_under_head --go	wave, low
+python arm_actions.py --action shake_hand --go	offer a handshake
+python arm_actions.py --action high_five --go	high five
+python arm_actions.py --action hug --go	hug
+python arm_actions.py --action clamp --go	clap
+python arm_actions.py --action refuse --go	refusal gesture
+python arm_actions.py --action emphasize --go	emphatic gesture
+python arm_actions.py --action forward_push --go	push forward
+python arm_actions.py --action right_hand_on_heart --go	hand on heart
+python arm_actions.py --action ultraman_ray --go	Ultraman pose
+python arm_actions.py --action blow_kiss_with_right_hand --go	blow kiss, right
+python arm_actions.py --action blow_kiss_with_left_hand --go	blow kiss, left
+python arm_actions.py --action blow_kiss_with_both_hands --go	blow kiss, both
+python arm_actions.py --action box_right_hand_win --go	boxing win, right
+python arm_actions.py --action box_left_hand_win --go	boxing win, left
+python arm_actions.py --action box_both_hand_win --go	boxing win, both
+python arm_actions.py --action both_hands_up_deviate_right --go	both hands up, angled right
+python arm_actions.py --action release_arm --go	arms back to neutral

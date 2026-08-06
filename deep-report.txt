@@ -1,0 +1,52 @@
+r1vision deep probe - 2026-07-27 12:42:11   [REAL RUN, restored]
+  target : 192.168.12.1
+  this Mac: 192.168.12.84
+
+====================================================================
+1. RTPS / DDS discovery
+====================================================================
+  Listening 25s on 239.255.0.1:7400 ...
+  No RTPS traffic at all.
+
+====================================================================
+1b. DDS topic enumeration
+====================================================================
+  No topics seen.
+
+====================================================================
+1c. Unitree VideoClient RPC
+====================================================================
+  videohub did not answer: SourceError: videohub service did not answer
+  (code 3102)
+
+====================================================================
+2. Full TCP scan of 192.168.12.1 (all 65535 ports)   <-- THE FINDING
+====================================================================
+  :53     (no banner)                    dnsmasq on the AP
+  :8551   HTTP/1.0 503 Service Unavailable
+          Server: GStreamer RTSP Server  <-- VIDEO IS HERE
+          Connection: close
+          Cache-Control: no-store
+  :9991   (no banner)                    likely Unitree app control channel
+
+====================================================================
+3. TCP probe across 192.168.12.0/24
+====================================================================
+  192.168.12.84: 22  (this Mac)
+  Nothing else answered TCP on the subnet.
+
+====================================================================
+4. Summary   [ORIGINAL CONCLUSION WAS WRONG - SUPERSEDED]
+====================================================================
+  The original summary printed "No DDS, no TCP services", contradicting
+  section 2 directly above it. The summary logic consulted only the DDS
+  result and never looked at the full scan. Fixed in deep_probe.py.
+
+  Actual finding: the R1 serves video over GStreamer RTSP at
+  192.168.12.1:8551. DDS is genuinely absent, so the Unitree SDK
+  (videohub / --source dds) is not the path on this unit.
+
+  Next step: rtsp_probe.py to walk the mount points on :8551.
+
+  NOTE: this file was briefly overwritten by an off-robot dry run at
+  12:46:59 and has been restored from the real 12:42:11 output.

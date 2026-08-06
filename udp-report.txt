@@ -1,0 +1,26 @@
+
+  adding route 192.168.123.0/24 via 192.168.12.1 (sudo) ...
+  add net 192.168.123.0: gateway 192.168.12.1: File exists
+route: writing to routing socket: File exists
+r1vision DDS port sweep - 2026-07-27 15:49:12
+  scanning 147 ports per host on 192.168.12.1, 192.168.123.161
+
+  192.168.12.1: pass 1 ...
+    75 silent of 147
+    confirming each 3x ...
+    192.168.12.1:7400  BOUND
+
+  192.168.123.161: pass 1 ...
+    80 silent of 147
+    confirming each 3x ...
+    192.168.123.161:7400  BOUND
+
+====================================================================
+Result
+====================================================================
+  2 bound port(s) written to dds-peers.txt
+    192.168.12.1:7400
+    192.168.123.161:7400
+
+  The other tools pick this file up automatically. Run:
+    python arm_actions.py --list
