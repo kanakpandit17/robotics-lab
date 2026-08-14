@@ -52,9 +52,25 @@ def ensure_cert(ips: list[str], days: int = 3650) -> tuple[Path, Path]:
     return CERT, KEY
 
 
-def wrap(sock, ips: list[str]):
-    """Wrap a listening socket in TLS."""
+def context(ips: list[str]) -> ssl.SSLContext:
+    """A server TLS context for these addresses.
+
+    Deliberately returns the context rather than a wrapped listening socket.
+    Wrapping the *listening* socket -- what this module used to do -- makes
+    accept() perform the TLS handshake inline, because do_handshake_on_connect
+    defaults to True. The accept loop is a single thread, so one client that
+    completes a TCP connect but stalls before finishing its handshake blocks
+    every other connection: the backlog fills and the OS starts refusing new
+    ones while the socket still shows as LISTENING.
+
+    That is not hypothetical. It wedged this server solid during a live teleop
+    session -- connections refused on localhost, poll rate decaying from 30 Hz
+    to 3 Hz beforehand -- over a phone hotspot where half-open connections are
+    routine and the Quest browser opens speculative ones constantly. The
+    handshake belongs in the per-connection worker thread; see Server in
+    quest_stream.py, which wraps each accepted socket there instead.
+    """
     cert, key = ensure_cert(ips)
     ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     ctx.load_cert_chain(certfile=str(cert), keyfile=str(key))
-    return ctx.wrap_socket(sock, server_side=True)
+    return ctx

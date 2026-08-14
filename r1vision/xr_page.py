@@ -69,16 +69,22 @@ def action_buttons(actions: dict[str, int] | None = None) -> str:
 
 
 def render_page(walk_enabled: bool = False, deadman: bool = False,
+                teleop_enabled: bool = False, record_enabled: bool = False,
+                teleop_hands: tuple[str, ...] = (),
                 actions: dict[str, int] | None = None) -> str:
-    """The page, with driving compiled in or out.
+    """The page, with driving/teleop/recording each compiled in or out.
 
-    Locomotion is absent from the page unless the server was started with
-    --walk, rather than present and refused. A control that does nothing
-    teaches you to press it harder.
+    Absent unless the server was started with the matching flag, rather than
+    present and refused. A control that does nothing teaches you to press it
+    harder.
     """
+    hands_js = "[" + ",".join(f'"{h}"' for h in teleop_hands) + "]"
     return (_PAGE
             .replace("__WALK_ENABLED__", "true" if walk_enabled else "false")
             .replace("__DEADMAN__", "true" if deadman else "false")
+            .replace("__TELEOP_ENABLED__", "true" if teleop_enabled else "false")
+            .replace("__RECORD_ENABLED__", "true" if record_enabled else "false")
+            .replace("__TELEOP_HANDS__", hands_js)
             .replace("__ACTION_BUTTONS__", action_buttons(actions)))
 
 
@@ -119,6 +125,8 @@ _PAGE = """<!doctype html>
          text-shadow:0 0 4px #000; }
   #vel { position:fixed; top:3.8rem; left:.8rem; font-size:.85rem; color:#7cf;
          text-shadow:0 0 4px #000; font-variant-numeric:tabular-nums; }
+  #teleop { position:fixed; top:5.4rem; left:.8rem; font-size:.85rem; color:#c9f;
+            text-shadow:0 0 4px #000; font-variant-numeric:tabular-nums; }
   #ui3 { padding:.7rem; display:flex; gap:.5rem; flex-wrap:wrap;
          background:rgba(40,0,0,.6); backdrop-filter:blur(8px); }
   button.danger { background:#7f1d1d; border-color:#dc2626; }
@@ -129,6 +137,7 @@ _PAGE = """<!doctype html>
 <div id="msg">starting…</div>
 <div id="act"></div>
 <div id="vel"></div>
+<div id="teleop"></div>
 <div id="panel">
   <div id="ui3" style="display:none">
     <button onclick="loco('start')">Stand &amp; balance</button>
@@ -376,7 +385,7 @@ const REQUIRE_GRIP = __DEADMAN__;
 // Matches the server's deadzone. Only used to decide whether the stick is being
 // touched at all; the authoritative shaping happens in locomotion.py.
 const DEADZONE = 0.15;
-let driveAt = 0, driving = false;
+let driveAt = 0, driving = false, driveInFlight = false;
 
 function pollDrive(session){
   if (!WALK) return;
@@ -412,6 +421,11 @@ function pollDrive(session){
   if (!active && !driving) return;
   driving = active;
 
+  // Same backpressure fix as pollTeleop: skip rather than pile up if the
+  // previous /drive hasn't resolved yet.
+  if (driveInFlight) return;
+  driveInFlight = true;
+
   fetch(`/drive?vx=${vx.toFixed(3)}&vy=${vy.toFixed(3)}&w=${w.toFixed(3)}`)
     .then(r => r.json())
     .then(j => {
@@ -420,6 +434,7 @@ function pollDrive(session){
         : 'drive: ' + j.detail;
       if (!active) setTimeout(() => velEl.textContent = 'standing', 400);
     })
+    .finally(() => { driveInFlight = false; })
     .catch(e => { velEl.textContent = 'drive: ' + e; });
 }
 
@@ -430,16 +445,27 @@ function releaseDrive(){
   driving = false;
   fetch('/drive?vx=0&vy=0&w=0').catch(() => {});
 }
-addEventListener('visibilitychange', () => { if (document.hidden) releaseDrive(); });
-addEventListener('pagehide', releaseDrive);
-addEventListener('blur', releaseDrive);
+addEventListener('visibilitychange', () => { if (document.hidden) { releaseDrive(); releaseTeleop(); } });
+addEventListener('pagehide', () => { releaseDrive(); releaseTeleop(); });
+addEventListener('blur', () => { releaseDrive(); releaseTeleop(); });
 
 // Controller buttons, because in immersive VR the HTML overlay is not drawn --
 // only WebGL is. Physical buttons are the only in-headset control surface.
-// Grip is absent: while walking is enabled it is the deadman, and an arm
-// gesture firing every time you take hold of the robot would be its own hazard.
+// Grip is absent from this map: while walking is enabled it is the deadman,
+// while teleop is enabled it is the per-hand clutch (read continuously in
+// pollTeleop, not as a discrete press here), and an arm gesture firing every
+// time you take hold of the robot would be its own hazard either way.
+const TELEOP = __TELEOP_ENABLED__;
+const RECORD = __RECORD_ENABLED__;
+const TELEOP_HANDS = __TELEOP_HANDS__;
+// When both hands are teleop-driven, grip has nothing free to host STOP on
+// (both are claimed by their own clutch) -- it falls back to the A/X button
+// instead, on either hand. Still reachable with the thumb without letting
+// go of grip, same "no aim" quality, just a different button once grip
+// itself is fully spoken for.
+const BOTH_HANDS_DRIVEN = TELEOP_HANDS.includes('left') && TELEOP_HANDS.includes('right');
 const BUTTON_MAP = {
-  0: 'wave_above_head',    // trigger
+  0: 'wave_above_head',    // trigger (unless TELEOP, which repurposes it below)
   4: 'right_hand_up',      // A / X
   5: 'shake_hand',         // B / Y
 };
@@ -450,11 +476,179 @@ function pollControllers(session){
     if (!gp) continue;
     gp.buttons.forEach((b, i) => {
       const key = src.handedness + i;
-      const action = (i === 1 && !WALK) ? 'release_arm' : BUTTON_MAP[i];
+      if (i === GRIP){
+        // release_arm-on-grip is a convenience for the no-teleop, no-walk
+        // case only; with teleop on, grip is spoken for by the clutch --
+        // EXCEPT on a hand TELEOP_HANDS doesn't actually drive, which is
+        // free for the STOP button instead of sitting idle.
+        if (TELEOP && !TELEOP_HANDS.includes(src.handedness)) {
+          if (b.pressed && !pressed[key]) estop(gp);
+          pressed[key] = b.pressed;
+          return;
+        }
+        if (!TELEOP && !WALK && b.pressed && !pressed[key]) act('release_arm');
+        pressed[key] = b.pressed;
+        return;
+      }
+      if (i === 3){
+        // Thumbstick click: nothing unless recording is enabled, since it is
+        // easy to hit by accident while steering the stick.
+        if (RECORD && b.pressed && !pressed[key]) toggleRecord();
+        pressed[key] = b.pressed;
+        return;
+      }
+      if (i === 4 && TELEOP && BOTH_HANDS_DRIVEN){
+        if (b.pressed && !pressed[key]) estop(gp);
+        pressed[key] = b.pressed;
+        return;
+      }
+      // No dexterous hand exists yet -- the trigger fires the existing
+      // 'clamp' canned gesture as a placeholder "close hand" cue while
+      // teleop is on, not a real grasp.
+      const action = (i === 0 && TELEOP) ? 'clamp' : BUTTON_MAP[i];
       if (b.pressed && !pressed[key] && action) act(action);
       pressed[key] = b.pressed;
     });
   }
+}
+
+// ---- arm teleop ------------------------------------------------------------
+// One HTTP call per hand per poll, same trade quest_stream.py's other
+// controls already make: on a local network the latency is small enough that
+// plain fetch beats the complexity of a second transport, and the server
+// answers with what it actually did with the pose -- engaged or frozen,
+// current angles -- so the HUD reflects the robot, not the request.
+let teleopAt = 0;
+let teleopStatus = null;
+let recording = false;
+const teleopEl = document.getElementById('teleop');
+
+// The #teleop text HUD below is not a reliable feedback channel: like the
+// button labels, ordinary HTML is not composited into the headset once an
+// immersive session starts, only the WebGL canvas is. Controller vibration
+// is the one channel that reliably reaches the operator in VR, so grip
+// state is confirmed by feel, not by text nobody can see -- a strong pulse
+// the instant grip is physically pressed (confirms the right button was
+// found, before any server round trip), a lighter one on release.
+function haptic(gp, intensity, ms){
+  try {
+    const act = gp && gp.hapticActuators && gp.hapticActuators[0];
+    if (act && act.pulse) act.pulse(intensity, ms);
+  } catch (e) { /* not supported on this controller -- silently skip */ }
+}
+const lastLocalGrip = { left: false, right: false };
+
+// Taking the headset off does not necessarily end the WebXR session, and it
+// fires none of the page-level events (visibilitychange/blur/pagehide are
+// for the 2D browser tab, not the XR session) -- so none of those stop
+// anything here. session.visibilityState is the signal that actually
+// reflects the headset, and releasing on it is what stops a stale grip
+// (e.g. a controller left resting against something, still tracked, still
+// reporting pressed) from continuing to drive the arm once nobody is
+// looking. Confirmed on hardware: without this, the arm kept moving for
+// close to a minute after VR was exited, and had to be stopped by
+// unplugging the robot's ethernet -- there was no software path that could
+// reach it. This is that path, and it is deliberately not the only one:
+// see also the xrSession 'visibilitychange' listener at session start, and
+// MAX_CONTINUOUS_ENGAGE_S in arm_teleop.py, which bounds it from the robot
+// side regardless of what the browser does or fails to do.
+function releaseTeleop(){
+  if (!TELEOP) return;
+  for (const hand of ['left', 'right']) {
+    fetch(`/teleop?hand=${hand}&px=0&py=0&pz=0&qw=1&qx=0&qy=0&qz=0&grip=0`)
+      .catch(() => {});
+  }
+}
+
+// The reachable-without-thinking stop: no aim, no menu, one press. Lives on
+// left grip while left is not itself a driven hand (built for right-hand-
+// only teleop, where left grip would otherwise sit idle); once both hands
+// are driven and grip has nothing free to claim, it falls back to the A/X
+// button (4) instead -- see BOTH_HANDS_DRIVEN above. TELEOP_HANDS is what
+// keeps grip from silently doing the wrong thing (colliding with a real
+// clutch) instead of just not firing. /estop does more than releasing
+// weight would on its own: it hands the joints back to the robot's own
+// 'ai' controller, which matters on a robot where nothing else may be
+// holding them.
+function estop(gp){
+  haptic(gp, 1.0, 200);
+  fetch('/estop').then(r => r.json()).then(j => {
+    msg.textContent = 'STOP: ' + j.detail;
+  }).catch(() => {});
+  if (xrSession) xrSession.end();
+}
+
+// Per hand, not global: true while that hand's most recent /teleop fetch is
+// still in flight. Without this, the 33ms timer above fires a new fetch on
+// schedule no matter how many earlier ones are still unresolved -- fine on
+// a fast link, but over a slow or congested one (this laptop's wifi radio
+// doing double duty as both a client and a hosted hotspot, for one) each
+// request can take far longer than 33ms, and nothing was stopping them from
+// piling up without bound. Measured on hardware: a 30-40 SECOND lag between
+// moving a hand and the arm responding -- far too large to be the control
+// loop or IK solve (milliseconds), and exactly what an ever-growing queue of
+// stale, already-outdated requests would produce. This also explains grip
+// readings that looked stuck at false: a real grip=true press could be
+// sitting behind dozens of older queued requests for tens of seconds before
+// ever reaching the server. Skipping a poll when the previous one for that
+// hand has not resolved yet means a slow link sends fewer updates, but the
+// next one sent always carries the CURRENT gamepad state, not a queued one.
+const teleopInFlight = { left: false, right: false };
+
+function pollTeleop(session, frame){
+  if (!TELEOP) return;
+  if (session.visibilityState !== 'visible') { releaseTeleop(); return; }
+  const now = performance.now();
+  if (now - teleopAt < 33) return;   // ~30 Hz
+  teleopAt = now;
+
+  for (const src of session.inputSources){
+    if (src.handedness !== 'left' && src.handedness !== 'right') continue;
+    if (teleopInFlight[src.handedness]) continue;
+    const space = src.gripSpace || src.targetRaySpace;
+    if (!space) continue;
+    const pose = frame.getPose(space, xrRefSpace);
+    if (!pose) continue;
+    const p = pose.transform.position, o = pose.transform.orientation;
+    const gp = src.gamepad;
+    const grip = !!(gp && gp.buttons[GRIP] && gp.buttons[GRIP].pressed);
+
+    if (grip !== lastLocalGrip[src.handedness]) {
+      lastLocalGrip[src.handedness] = grip;
+      haptic(gp, grip ? 0.8 : 0.3, grip ? 70 : 35);
+    }
+
+    teleopInFlight[src.handedness] = true;
+    fetch(`/teleop?hand=${src.handedness}`
+         + `&px=${p.x.toFixed(4)}&py=${p.y.toFixed(4)}&pz=${p.z.toFixed(4)}`
+         + `&qw=${o.w.toFixed(4)}&qx=${o.x.toFixed(4)}&qy=${o.y.toFixed(4)}&qz=${o.z.toFixed(4)}`
+         + `&grip=${grip ? 1 : 0}`)
+      .then(r => r.json())
+      .then(j => { if (j.ok) { teleopStatus = j; updateTeleopHud(); } })
+      .catch(() => {})
+      .finally(() => { teleopInFlight[src.handedness] = false; });
+  }
+}
+
+function updateTeleopHud(){
+  const eng = (teleopStatus && teleopStatus.engaged) || {};
+  const parts = Object.keys(eng).map(h => `${h}:${eng[h] ? 'ENGAGED' : 'free'}`);
+  const w = teleopStatus ? Number(teleopStatus.weight || 0).toFixed(2) : '0.00';
+  const rec = recording ? '  ● REC' : '';
+  teleopEl.textContent = (TELEOP ? parts.join('  ') + `  w=${w}` : '') + rec;
+}
+
+function toggleRecord(){
+  const cmd = recording ? 'stop' : 'start';
+  fetch('/record?cmd=' + cmd)
+    .then(r => r.json())
+    .then(j => {
+      if (j.ok) recording = (cmd === 'start');
+      actEl.textContent = `record ${cmd}: ${j.detail}`;
+      setTimeout(() => actEl.textContent = '', 2500);
+      updateTeleopHud();
+    })
+    .catch(e => { actEl.textContent = 'record: ' + e; });
 }
 
 // ---- WebXR ---------------------------------------------------------------
@@ -476,7 +670,13 @@ vrBtn.onclick = async () => {
   xrRefSpace = await xrSession.requestReferenceSpace('local');
   xrSession.addEventListener('end', () => {
     releaseDrive();
+    releaseTeleop();
     xrSession=null; vrBtn.textContent='Enter VR'; requestAnimationFrame(preview);
+  });
+  // Event-driven, not just the per-frame check in pollTeleop: fires the
+  // instant the headset comes off, rather than waiting for the next poll.
+  xrSession.addEventListener('visibilitychange', () => {
+    if (xrSession.visibilityState !== 'visible') releaseTeleop();
   });
   xrSession.requestAnimationFrame(onXRFrame);
 };
@@ -485,6 +685,7 @@ function onXRFrame(t, frame){
   session.requestAnimationFrame(onXRFrame);
   pollControllers(session);
   pollDrive(session);
+  pollTeleop(session, frame);
   const pose=frame.getViewerPose(xrRefSpace);
   if(!pose) return;
   upload();
