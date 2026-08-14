@@ -42,7 +42,14 @@ CONFIG_TEMPLATE = """<?xml version="1.0" encoding="UTF-8" ?>
 # few seconds whenever one is unreachable -- which is normal and expected, since
 # most of those ports have nothing behind them. At severe verbosity that noise
 # buries the actual output, so it goes to a file instead of the terminal.
-DDS_LOG = "/tmp/r1vision-cyclonedds.log"
+#
+# Not hardcoded to /tmp: that path does not exist on Windows, and CycloneDDS
+# fails *domain creation* when it cannot open its log file -- which surfaces
+# as an opaque "channel factory init error" that looks like a network problem.
+import tempfile as _tempfile
+from os.path import join as _join
+
+DDS_LOG = _join(_tempfile.gettempdir(), "r1vision-cyclonedds.log")
 
 
 import contextlib
@@ -52,7 +59,7 @@ from pathlib import Path
 
 
 @contextlib.contextmanager
-def quiet_dds_stderr(path: str = "/tmp/r1vision-cyclonedds.log"):
+def quiet_dds_stderr(path: str = DDS_LOG):
     """Send CycloneDDS's chatter to a file instead of the terminal.
 
     `<Tracing><Verbosity>none</Verbosity></Tracing>` does NOT suppress
@@ -127,16 +134,41 @@ ROBOT_SUBNET = "192.168.123."
 
 
 def interfaces() -> list[tuple[str, str]]:
-    """(name, ipv4) for every interface that currently has an address."""
-    import subprocess
+    """(name, ipv4) for every interface that currently has an address.
 
-    out = subprocess.run(["ifconfig"], capture_output=True, text=True).stdout
-    found, name = [], ""
-    for line in out.splitlines():
-        if line and not line[0].isspace():
-            name = line.split(":")[0]
-        elif line.strip().startswith("inet ") and "127.0.0.1" not in line:
-            found.append((name, line.split()[1]))
+    Uses psutil rather than shelling out: `ifconfig` does not exist on
+    Windows, and `ipconfig`'s output is localised -- parsing it would break on
+    a German or French machine, which is exactly the kind of failure that
+    surfaces as "no DDS" and gets blamed on the robot.
+
+    The names psutil reports are also the ones CycloneDDS wants for
+    `<NetworkInterface name=...>` on each platform: "Ethernet" on Windows,
+    "en6" on macOS.
+    """
+    try:
+        import socket
+
+        import psutil
+    except ImportError:
+        # Fall back to the original macOS/Linux path so a machine without
+        # psutil still works the way it always did.
+        import subprocess
+
+        out = subprocess.run(["ifconfig"], capture_output=True,
+                            text=True).stdout
+        found, name = [], ""
+        for line in out.splitlines():
+            if line and not line[0].isspace():
+                name = line.split(":")[0]
+            elif line.strip().startswith("inet ") and "127.0.0.1" not in line:
+                found.append((name, line.split()[1]))
+        return found
+
+    found = []
+    for name, addrs in psutil.net_if_addrs().items():
+        for a in addrs:
+            if a.family == socket.AF_INET and not a.address.startswith("127."):
+                found.append((name, a.address))
     return found
 
 
@@ -181,18 +213,22 @@ def init_channel(iface: str, peers: list[str] | None = None,
 
     from unitree_sdk2py.core import channel as _channel
 
-    if peers:
-        peer_xml = "\n".join(
-            f'                <Peer address="{p}"/>' for p in peers
-        )
-        # channel.py did `from .channel_config import ChannelConfigHasInterface`,
-        # so the name lives in the channel module's globals and is looked up at
-        # call time -- patch it there, not in channel_config.
-        _channel.ChannelConfigHasInterface = CONFIG_TEMPLATE.format(
-            peers=peer_xml,
-            multicast="true" if multicast else "false",
-            verbosity="none",
-            logfile=DDS_LOG,
-        )
+    # Always substitute our own template, even with no peers. The SDK's built-in
+    # one hardcodes <OutputFile>/tmp/cdds.LOG</OutputFile>, and CycloneDDS
+    # refuses to create the domain when it cannot open that file -- so on
+    # Windows the SDK's own config makes every connection fail before a single
+    # packet is sent. Ours writes somewhere that exists on both platforms.
+    peer_xml = "\n".join(
+        f'                <Peer address="{p}"/>' for p in (peers or [])
+    )
+    # channel.py did `from .channel_config import ChannelConfigHasInterface`,
+    # so the name lives in the channel module's globals and is looked up at
+    # call time -- patch it there, not in channel_config.
+    _channel.ChannelConfigHasInterface = CONFIG_TEMPLATE.format(
+        peers=peer_xml,
+        multicast="true" if multicast else "false",
+        verbosity="none",
+        logfile=DDS_LOG,
+    )
 
     _channel.ChannelFactoryInitialize(domain, iface)

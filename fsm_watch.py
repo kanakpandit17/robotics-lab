@@ -46,10 +46,18 @@ def main(argv):
     init_channel(robot_iface("auto"), peers=default_peers())
 
     state = {}
-    ChannelSubscriber("rt/sportmodestate", Fsm).Init(
-        lambda m: state.__setitem__("fsm", m), 10)
-    ChannelSubscriber("rt/odommodestate", Odom).Init(
-        lambda m: state.__setitem__("odom", m), 10)
+    # Kept in `subs`, not discarded: an unreferenced ChannelSubscriber is
+    # garbage collected and its subscription dies silently after a sample or
+    # two. That makes a live topic look like a frozen constant -- which is
+    # exactly the evidence this script was used to gather about
+    # rt/sportmodestate, so any earlier "this topic is a stub" conclusion
+    # drawn from it needs re-checking.
+    subs = [
+        ChannelSubscriber("rt/sportmodestate", Fsm),
+        ChannelSubscriber("rt/odommodestate", Odom),
+    ]
+    subs[0].Init(lambda m: state.__setitem__("fsm", m), 10)
+    subs[1].Init(lambda m: state.__setitem__("odom", m), 10)
 
     print("waiting for rt/sportmodestate ...", end="", flush=True)
     t0 = time.monotonic()

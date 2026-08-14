@@ -105,8 +105,15 @@ class Arm:
         init_channel(self.iface, peers=None)
 
         self._crc = CRC()
-        sub = ChannelSubscriber(TOPIC_STATE, LowState_)
-        sub.Init(lambda m: setattr(self, "state", m), 10)
+        # Held on the instance, not in a local: a ChannelSubscriber that goes
+        # out of scope is garbage collected, and the subscription dies with it.
+        # The failure is quiet and very misleading -- the first sample or two
+        # arrive, then `state` freezes at whatever it last saw, so every later
+        # reading looks like a joint that is not moving. That cost a whole
+        # debugging session: a commanded arm sweep appeared to be ignored when
+        # the readings were simply stale.
+        self._sub = ChannelSubscriber(TOPIC_STATE, LowState_)
+        self._sub.Init(lambda m: setattr(self, "state", m), 10)
 
         self._pub = ChannelPublisher(TOPIC_ARM, LowCmd_)
         self._pub.Init()

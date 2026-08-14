@@ -2,6 +2,10 @@
 opencv-python>=4.9
 numpy>=1.26
 
+# Interface detection for the DDS path. Replaces shelling out to `ifconfig`,
+# which does not exist on Windows and whose Windows equivalent is localised.
+psutil>=5.9
+
 # Optional: only needed for the Unitree DDS backend (--source dds).
 # cyclonedds is pinned by Unitree and usually needs a source build on macOS;
 # see README "DDS backend" before installing.

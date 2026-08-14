@@ -52,3 +52,6 @@ dds-peers.txt
 # ===== OS junk =====
 Thumbs.db
 .DS_Store
+
+# ===== Editor-local settings (machine specific) =====
+.vscode/
