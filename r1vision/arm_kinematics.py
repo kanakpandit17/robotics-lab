@@ -20,8 +20,16 @@ two 210 mm segments. The URDF shows both assumptions are wrong:
 
 A closed-form spherical solve cannot represent that arm, so position IK is
 now numerical: damped least squares on the analytic Jacobian, which handles
-the offset axes, honours the real joint limits, and degrades gracefully near
-singularities instead of jumping.
+the offset axes and honours the real joint limits.
+
+Degrading gracefully near singularities took a second fix, not just this
+one: iteration-based damping alone was not enough. Confirmed on hardware --
+a 7 cm hand move at a pose with a near-zero smallest singular value (Jacobian
+condition number 7768) solved to a target 100 deg away in shoulder yaw, since
+by that many iterations the fixed schedule had already decayed toward its
+floor. SING_DAMPING_MAX/SING_DAMPING_SV add damping that scales with the
+Jacobian's own conditioning instead, so it stays alert exactly where the
+iteration count can't tell it to.
 
 The end effector is the wrist-roll joint origin -- the last link in the URDF,
 since this robot has no hand fitted. Wrist roll therefore spins about a point
@@ -45,6 +53,27 @@ CHAIN = ("shoulder_pitch", "shoulder_roll", "shoulder_yaw", "elbow", "wrist_roll
 # Wrist roll spins about the end-effector point, so it cannot contribute to
 # position. Only the first four joints enter the IK.
 N_POSITION_JOINTS = 4
+
+# Singularity-robust damping (Nakamura/Wampler): extra regularization that
+# grows sharply as the Jacobian's smallest singular value shrinks, on top of
+# the iteration-based schedule in _solve_from. That schedule alone is not
+# enough near a singularity: confirmed on hardware, a 7 cm hand move at a
+# pose whose smallest singular value was ~0 (condition number 7768, against
+# 12 a few iterations earlier at the seed) solved to a target 100 deg away
+# in shoulder yaw. By late iterations the fixed schedule had already decayed
+# toward its floor, so nothing was left to catch the near-singular step.
+# SING_DAMPING_SV was first set to 0.05 from the reachable-workspace sweep's
+# MEDIAN smallest singular value (0.048) -- which was the wrong statistic to
+# threshold on: it damped roughly the worse HALF of all poses, not just the
+# genuinely singular ones, and measurably hurt ordinary accuracy (95th
+# percentile error rose from 0.10mm to 3.6mm, solve rate dropped from 100%
+# to ~80%). Corrected by sweeping the threshold against both a normal-pose
+# accuracy benchmark and the actual hardware incident: 0.002 restores
+# accuracy to the original baseline (0.10mm/97%+) while still capping the
+# reproduced singularity jump at ~9 deg, down from the ~100 deg measured on
+# hardware. Not a round number -- the value that measurement converged on.
+SING_DAMPING_MAX = 0.5
+SING_DAMPING_SV = 0.002
 
 
 def _rpy(roll: float, pitch: float, yaw: float) -> np.ndarray:
@@ -187,8 +216,11 @@ class ArmChain:
             if err < tol:
                 break
             J = self.jacobian(q)
+            sv_min = float(np.linalg.svd(J, compute_uv=False)[-1])
+            sing_damping = SING_DAMPING_MAX * math.exp(-(sv_min / SING_DAMPING_SV) ** 2)
+            eff_damping = math.sqrt(damping ** 2 + sing_damping ** 2)
             JT = J.T
-            dq = JT @ np.linalg.solve(J @ JT + (damping ** 2) * np.eye(3), err_v)
+            dq = JT @ np.linalg.solve(J @ JT + (eff_damping ** 2) * np.eye(3), err_v)
             q[:N_POSITION_JOINTS] = np.clip(
                 q[:N_POSITION_JOINTS] + dq, self.lower[:N_POSITION_JOINTS],
                 self.upper[:N_POSITION_JOINTS])

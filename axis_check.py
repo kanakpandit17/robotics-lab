@@ -64,12 +64,24 @@ ROBOT_AXES = {
 # that was fine. Each prompt now names one direction and says what to hold
 # still, because an ambiguous instruction here is indistinguishable from a
 # wrong AXIS_MAP in the result.
-CHECKS = [
-    ("Reach FORWARD, straight out from your chest (same height)", "forward"),
-    ("Raise your hand UP toward the ceiling (straight up)", "up"),
-    ("Move your hand OUT TO YOUR RIGHT SIDE, away from your body "
-     "-- NOT across your chest, and keep it at the same height", "right"),
-]
+#
+# The third check is hand-dependent, not a fixed "right": a hand's natural
+# sideways-away-from-the-body motion mirrors the robot's SAME side -- right
+# hand out -> robot right, left hand out -> robot left. An earlier version
+# hardcoded "right" regardless of --hand, so testing the left hand (correctly
+# moved to the operator's own left, per the prompt actually given out loud)
+# was graded against an expectation that could only ever fail, independent
+# of whether AXIS_MAP was right. Found by noticing the script's own printed
+# prompt said "RIGHT SIDE" while the left hand was what got tested.
+def checks_for(hand: str) -> list[tuple[str, str]]:
+    side = hand.upper()
+    return [
+        ("Reach FORWARD, straight out from your chest (same height)", "forward"),
+        ("Raise your hand UP toward the ceiling (straight up)", "up"),
+        (f"Move your {hand.upper()} hand OUT TO YOUR {side} SIDE, away from "
+         "your body -- NOT across your chest, and keep it at the same height",
+         hand),
+    ]
 
 MIN_TRAVEL_M = 0.08   # below this the move is too small to read confidently
 
@@ -146,9 +158,13 @@ def main() -> int:
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=8080)
     ap.add_argument("--hand", default="right", choices=("left", "right"))
+    ap.add_argument("--http", action="store_true",
+                    help="plain http, e.g. the USB/localhost path "
+                         "(quest_stream.py --http), which has no cert at all")
     args = ap.parse_args()
 
-    url = f"https://{args.host}:{args.port}/teleop?status=1"
+    scheme = "http" if args.http else "https"
+    url = f"{scheme}://{args.host}:{args.port}/teleop?status=1"
     try:
         st = fetch(url)
     except Exception as e:
@@ -162,20 +178,21 @@ def main() -> int:
               f"(it has {st.get('hands')})", file=sys.stderr)
         return 1
 
+    checks = checks_for(args.hand)
     print(f"  checking the {args.hand} controller against AXIS_MAP")
-    print(f"  waiting for {len(CHECKS)} moves, in this order:\n")
-    for i, (prompt, _) in enumerate(CHECKS, 1):
+    print(f"  waiting for {len(checks)} moves, in this order:\n")
+    for i, (prompt, _) in enumerate(checks, 1):
         print(f"    {i}. {prompt}")
     print("\n  For each: hold GRIP, move ~30 cm, release. Then the next one.\n")
 
-    segments = collect_segments(url, args.hand, want=len(CHECKS))
+    segments = collect_segments(url, args.hand, want=len(checks))
     if not segments:
         print("\n  nothing captured. Is the headset in VR, and does grip work?")
         return 1
 
     print()
     results = []
-    for (prompt, expect), (start, last) in zip(CHECKS, segments):
+    for (prompt, expect), (start, last) in zip(checks, segments):
         webxr_delta = last - start
         travel = float(np.linalg.norm(webxr_delta))
         robot_delta = AXIS_MAP @ webxr_delta
