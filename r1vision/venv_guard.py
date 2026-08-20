@@ -15,8 +15,18 @@ _SENTINEL = "R1VISION_REEXEC"
 
 
 def venv_python() -> Path | None:
-    candidate = Path(__file__).resolve().parent.parent / ".venv" / "bin" / "python"
-    return candidate if candidate.exists() else None
+    root = Path(__file__).resolve().parent.parent / ".venv"
+    # Windows venvs put the interpreter in Scripts\python.exe, not bin/python.
+    # Checking only the POSIX layout meant this reported "no .venv was found"
+    # on Windows even with a complete, working .venv sitting right there --
+    # an environment problem disguised as a missing one. Hit for real: running
+    # from a different interpreter (a conda env with no cyclonedds) took the
+    # branch that needs this function, which every same-process check this
+    # session had quietly skipped by already being cyclonedds-equipped.
+    for candidate in (root / "bin" / "python", root / "Scripts" / "python.exe"):
+        if candidate.exists():
+            return candidate
+    return None
 
 
 def missing_modules(required: tuple[str, ...]) -> list[str]:
@@ -37,11 +47,19 @@ def ensure_venv(required: tuple[str, ...] = ("cv2",)) -> None:
 
     target = venv_python()
     if target is None:
+        # && is a PowerShell parse error, and bin/pip does not exist on
+        # Windows -- this message sent someone straight into a second
+        # failure right after the first. One command per line works in
+        # every shell this project actually gets run from.
         sys.exit(
             f"error: this interpreter ({sys.executable}) is missing "
             f"{', '.join(missing)} and no .venv was found.\n"
-            "Create it with:  python3.12 -m venv .venv && "
-            ".venv/bin/pip install -r requirements.txt"
+            "Create it with:\n"
+            "  python3.12 -m venv .venv\n"
+            "  .venv\\Scripts\\pip install -r requirements.txt   "
+            "(Windows)\n"
+            "  .venv/bin/pip install -r requirements.txt          "
+            "(macOS/Linux)"
         )
 
     if Path(sys.executable).resolve() == target.resolve() or os.environ.get(_SENTINEL):
