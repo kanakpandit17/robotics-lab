@@ -1,0 +1,210 @@
+<?xml version='1.0' encoding='utf-8'?>
+<robot name="lara8">
+
+	<link name="link0">
+		<inertial>
+			<origin rpy="0 -0 0" xyz="0.00019536 6.279e-05 0.0477423" />
+			<mass value="3.802" />
+			<inertia ixx="0.00988862" ixy="-2.643e-05" ixz="3.418e-05" iyy="0.00987525" iyz="7.27e-06" izz="0.0141522" />
+		</inertial>
+		<visual>
+			<origin xyz="0 0 0" rpy="0 0 0" />
+			<geometry>
+				<mesh filename="meshes/visual/Link0_body.glb" />
+			</geometry>
+		</visual>
+		<collision>
+			<origin xyz="0 0 0" rpy="0 0 0" />
+			<geometry>
+				<mesh filename="meshes/collision/Link0_body_convex_hull.obj" />
+			</geometry>
+		</collision>
+	</link>
+
+	<link name="link1">
+		<inertial>
+			<origin rpy="0 -0 0" xyz="3.538e-05 0.0244212 0.196026" />
+			<mass value="15.4844" />
+			<inertia ixx="0.128824" ixy="4.582e-05" ixz="-1.25e-06" iyy="0.114268" iyz="-0.0233019" izz="0.0598719" />
+		</inertial>
+		<visual>
+			<origin xyz="0 0 0" rpy="0 0 0" />
+			<geometry>
+				<mesh filename="meshes/visual/Link1_body.glb" />
+			</geometry>
+		</visual>
+		<collision>
+			<origin xyz="0 0 0" rpy="0 0 0" />
+			<geometry>
+				<mesh filename="meshes/collision/Link1_body_convex_hull.obj" />
+			</geometry>
+		</collision>
+	</link>
+
+	<link name="link2">
+		<inertial>
+			<origin rpy="0 -0 0" xyz="-6.26e-06 0.133119 0.24857" />
+			<mass value="9.566" />
+			<inertia ixx="0.497314" ixy="6.83e-06" ixz="2.097e-05" iyy="0.499892" iyz="0.0137622" izz="0.0228115" />
+		</inertial>
+		<visual>
+			<origin xyz="0 0 -0.26" rpy="0 0 0" />
+			<geometry>
+				<mesh filename="meshes/visual/Link2_body.glb" />
+			</geometry>
+		</visual>
+		<collision>
+			<origin xyz="0 0 -0.26" rpy="0 0 0" />
+			<geometry>
+				<mesh filename="meshes/collision/Link2_body_convex_hull.obj" />
+			</geometry>
+		</collision>
+	</link>
+
+	<link name="link3">
+		<inertial>
+			<origin rpy="0 -0 0" xyz="5.016e-05 0.0197567 0.0501038" />
+			<mass value="8.396" />
+			<inertia ixx="0.0441114" ixy="1.458e-05" ixz="2.62e-06" iyy="0.0377565" iyz="0.00794037" izz="0.021116" />
+		</inertial>
+		<visual>
+			<origin xyz="0 0 -0.86" rpy="0 0 0" />
+			<geometry>
+				<mesh filename="meshes/visual/Link3_body.glb" />
+			</geometry>
+		</visual>
+		<collision>
+			<origin xyz="0 0 -0.86" rpy="0 0 0" />
+			<geometry>
+				<mesh filename="meshes/collision/Link3_body_convex_hull.obj" />
+			</geometry>
+		</collision>
+	</link>
+
+	<link name="link4">
+		<inertial>
+			<origin rpy="0 -0 0" xyz="-7.28e-06 0.0543461 0.362739" />
+			<mass value="4.35" />
+			<inertia ixx="0.188109" ixy="1.67e-06" ixz="1.748e-05" iyy="0.180946" iyz="-0.0305342" izz="0.0138164" />
+		</inertial>
+		<visual>
+			<origin xyz="0 0 -0.86" rpy="0 0 0" />
+			<geometry>
+				<mesh filename="meshes/visual/Link4_body.glb" />
+			</geometry>
+		</visual>
+		<collision>
+			<origin xyz="0 0 -0.86" rpy="0 0 0" />
+			<geometry>
+				<mesh filename="meshes/collision/Link4_body_convex_hull.obj" />
+			</geometry>
+		</collision>
+	</link>
+
+	<link name="link5">
+		<inertial>
+			<origin rpy="0 -0 0" xyz="7.224e-05 0.0165235 0.0370516" />
+			<mass value="4.033" />
+			<inertia ixx="0.0124505" ixy="1.367e-05" ixz="1.017e-05" iyy="0.0100187" iyz="0.00238411" izz="0.00605718" />
+		</inertial>
+		<visual>
+			<origin xyz="0 0 -1.56" rpy="0 0 0" />
+			<geometry>
+				<mesh filename="meshes/visual/Link5_body.glb" />
+			</geometry>
+		</visual>
+		<collision>
+			<origin xyz="0 0 -1.56" rpy="0 0 0" />
+			<geometry>
+				<mesh filename="meshes/collision/Link5_body_convex_hull.obj" />
+			</geometry>
+		</collision>
+	</link>
+
+	<link name="link6">
+		<inertial>
+			<origin rpy="0 -0 0" xyz="0.00010967 -0.00013253 0.132215" />
+			<mass value="0.766" />
+			<inertia ixx="0.00070009" ixy="8.13e-06" ixz="-9e-07" iyy="0.00070246" iyz="6e-07" izz="0.00065489" />
+		</inertial>
+		<visual>
+			<origin xyz="0 0 -1.56" rpy="0 0 0" />
+			<geometry>
+				<mesh filename="meshes/visual/Link6_body.glb" />
+			</geometry>
+		</visual>
+		<collision>
+			<origin xyz="0 0 -1.56" rpy="0 0 0" />
+			<geometry>
+				<mesh filename="meshes/collision/Link6_body_convex_hull.obj" />
+			</geometry>
+		</collision>
+	</link>
+
+	<link name="flange">
+	</link>
+
+	<link name="gripper_tcp">
+	</link>
+
+	<joint name="joint1" type="revolute">
+		<limit lower="-3.14159" upper="3.14159" effort="436" velocity="2.26893" />
+		<origin rpy="0 0 0" xyz="0 0 0" />
+		<parent link="link0" />
+		<child link="link1" />
+		<axis xyz="0 0 1" />
+	</joint>
+
+	<joint name="joint2" type="revolute">
+		<limit lower="-3.14159" upper="3.14159" effort="436" velocity="2.26893" />
+		<origin rpy="0 0 0" xyz="0 0 0.26" />
+		<parent link="link1" />
+		<child link="link2" />
+		<axis xyz="0 1 0" />
+	</joint>
+
+	<joint name="joint3" type="revolute">
+		<limit lower="-2.61799" upper="2.61799" effort="194" velocity="2.618" />
+		<origin rpy="0 0 0" xyz="0 0 0.6" />
+		<parent link="link2" />
+		<child link="link3" />
+		<axis xyz="0 1 0" />
+	</joint>
+
+	<joint name="joint4" type="revolute">
+		<limit lower="-6.28319" upper="6.28319" effort="194" velocity="2.618" />
+		<origin rpy="0 0 0" xyz="0 0 0" />
+		<parent link="link3" />
+		<child link="link4" />
+		<axis xyz="0 0 1" />
+	</joint>
+
+	<joint name="joint5" type="revolute">
+		<limit lower="-3.14159" upper="3.14159" effort="66" velocity="3.1416" />
+		<origin rpy="0 0 0" xyz="0 0 0.7" />
+		<parent link="link4" />
+		<child link="link5" />
+		<axis xyz="0 1 0" />
+	</joint>
+
+	<joint name="joint6" type="revolute">
+		<limit lower="-6.28319" upper="6.28319" effort="66" velocity="3.1416" />
+		<origin rpy="0 0 0" xyz="0 0 0" />
+		<parent link="link5" />
+		<child link="link6" />
+		<axis xyz="0 0 1" />
+	</joint>
+
+	<joint name="link6_flange" type="fixed">
+		<origin rpy="0 0 0" xyz="0 0 0.1735" />
+		<parent link="link6" />
+		<child link="flange" />
+	</joint>
+
+	<joint name="flange_gripper_tcp" type="fixed">
+		<origin rpy="0 0 0" xyz="0 0 0.0" />
+		<parent link="flange" />
+		<child link="gripper_tcp" />
+	</joint>
+
+</robot>
