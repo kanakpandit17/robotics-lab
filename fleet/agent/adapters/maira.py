@@ -455,7 +455,14 @@ class MairaAdapter(RobotAdapter):
 
     def telemetry(self) -> dict:
         if self._sdk is None:
-            return {"estopped": self._estopped}
+            # SDK never connected (import/CORBA unreachable). rosbridge is the
+            # live fallback for joints/pose, so publish it here too -- otherwise
+            # the robot shows present but frozen, with no joints, on the dashboard.
+            base = {"estopped": self._estopped}
+            if self._ros is not None:
+                base.update({k: v for k, v in self._ros.snapshot().items()
+                             if v is not None})
+            return base
         if self._simulate:
             return {"estopped": self._estopped, **self._sdk.telemetry()}
         self._read_errors.clear()
