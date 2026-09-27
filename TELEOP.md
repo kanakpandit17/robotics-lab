@@ -9,7 +9,7 @@ and it does not touch the legs; walking is `WALKING.md`'s separate `--walk`.
 ./vr.sh --teleop
 ```
 
-Plain `./vr.sh` is still video and canned gestures only, exactly as before.
+Plain `./vr.sh` is video only; `./vr.sh --gestures` adds the canned gestures.
 Starting the video feed should never be able to move an arm.
 
 ## The clutch model

@@ -20,7 +20,7 @@ reference, like picking a mouse up and putting it down somewhere else.
 
 Why one weight for two arms
 ----------------------------
-`r1_arm.py`'s `WEIGHT_SLOT` blends *the whole* `rt/arm_sdk` frame, not one arm
+`r1_arm.py`'s weight (`mode_pr`) blends *the whole* `rt/arm_sdk` frame, not one arm
 at a time -- there is no such thing as "right arm engaged, left arm still
 under the robot's own control" at the DDS level. So every cycle publishes
 **both** arms' target angles regardless of which hand is actually clutched;
