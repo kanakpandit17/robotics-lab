@@ -232,3 +232,70 @@ control, which never calls into the recorder at all.
 | Arm snaps or jumps | should not happen -- `MAX_STEP_DEG_PER_CYCLE` caps this; if it still does, the step clamp itself needs lowering, not removing |
 | `python arm_teleop_cli.py --dry-run` also fails | a bug in the driver, not the network or the robot -- start there |
 | `python r1_arm.py --joints` also fails | the DDS link, not teleop -- see `README.md`'s DDS/network sections |
+
+## The reachable directions are not what you expect
+
+Measured from the rest pose with the teleop solver's own budget (12 iterations,
+no restarts), how far the hand can actually travel before the residual passes
+5 mm:
+
+| direction | travel | elbow at the end |
+|---|---|---|
+| forward only | 8 cm | 60.3 deg |
+| forward + up | 29 cm | 65.9 deg |
+| **forward + up, steep** | **39 cm** | **41.0 deg** |
+| up | 17 cm | -55.9 deg |
+| back | 32 cm | 60.5 deg |
+| out (away from body) | 12 cm | 65.7 deg |
+| down | 5 cm | 65.8 deg |
+
+**Push forward AND up, not forward.** A door-opening motion -- hand driven
+straight out at constant height -- is the single worst direction this arm has,
+and it is what an operator naturally tries first. It reads as "the robot bends
+its elbow instead of reaching", which is exactly what it does: at 8 cm forward
+every one of 3252 sampled IK solutions has the elbow between 64.8 and 91.2 deg.
+There is no straighter-elbow solution to pick. The elbow bend is the geometry,
+not the solver, and no tuning changes it.
+
+The shoulder sits at z = +0.197 m and the hand hangs below it, so travelling
+forward at hanging height forces the arm to fold. Rising toward shoulder level
+lets it extend, which is why the steep diagonal buys 5x the travel AND a
+straighter elbow at the same time.
+
+Raising the starting posture does NOT help and was measured, not assumed: a
+"ready" pose at shoulder pitch -50 deg / elbow 40 deg gives 2 cm of forward
+travel against rest's 8 cm, because a pose already extended forward has less
+headroom left. Every forward-leaning candidate in a 180-pose sweep scored the
+same 87% local reachability as rest with half the forward travel. `rest` stays.
+
+### Which joint stops each motion (right arm, measured from rest)
+
+| motion | travel | what stops it |
+|---|---|---|
+| out to the side | 12 cm | workspace edge |
+| **out AND up** | **34 cm** | workspace edge |
+| straight up | 17 cm | **elbow at its -55.9 deg lower limit** |
+| forward | 9 cm | workspace edge |
+| **in toward the chest** | 18 cm | **shoulder roll at its +13 deg limit** |
+| forward + toward chest | 12 cm | workspace edge |
+| forward + up | 29 cm | workspace edge |
+
+Two of these are hard joint limits and no tuning will move them:
+
+**Lifting straight up runs the elbow into its lower stop.** The arm must
+straighten to rise vertically, and the elbow only extends to -55.9 deg. Raise
+the arm OUT AND UP instead and you get 34 cm rather than 17, because that uses
+shoulder roll -- which has 142 deg of travel -- instead of demanding elbow
+extension.
+
+**Reaching across the body stops at 18 cm** because right shoulder roll only
+travels to +13 deg (left, +142 by mirror). Checked against the URDF: right is
+-142..+13 and left is -13..+142, correct mirrors, so this is the robot's design
+rather than another copied-limits bug of the `LIMITS[16]` kind. Each arm abducts
+142 deg outward and barely crosses the midline.
+
+Everything else on this list stops at the workspace edge with no joint at a
+limit -- the arm is simply short. The elbow sits at 74-78 deg at the end of
+every forward or inward reach, which is what "the elbow is always bent" is: the
+only motion that straightens it is lifting, and lifting is what the elbow limit
+cuts short.

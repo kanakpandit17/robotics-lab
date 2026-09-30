@@ -52,7 +52,12 @@ SHOULDER_PITCH = {"right": 22, "left": 15}
 LIMITS = {
     22: (-3.1416, 2.0944), 23: (-2.4784, 0.2269), 24: (-1.9199, 1.9199),
     25: (-0.9757, 2.1850), 26: (-1.9199, 1.9199),
-    15: (-3.1416, 2.0944), 16: (-2.4784, 0.2269), 17: (-1.9199, 1.9199),
+    # 16 ist die GESPIEGELTE Rolle des linken Arms. Hier stand die Kopie der
+    # rechten Grenze (-2.4784, 0.2269); R1.urdf gibt fuer left_shoulder_roll
+    # (-0.2269, +2.4784) an. Mit der alten Zeile wurde jede positive
+    # Linksrolle bei +13 deg abgeschnitten statt bei +142 deg -- unsichtbar,
+    # weil send() still klemmt.
+    15: (-3.1416, 2.0944), 16: (-0.2269, 2.4784), 17: (-1.9199, 1.9199),
     18: (-0.9757, 2.1850), 19: (-1.9199, 1.9199),
 }
 
@@ -84,9 +89,16 @@ class LowCmdArm:
         from unitree_sdk2py.idl.unitree_hg.msg.dds_ import LowCmd_, LowState_
         from unitree_sdk2py.utils.crc import CRC
 
-        from r1vision.unitree_dds import init_channel
+        from r1vision.unitree_dds import default_peers, init_channel
 
-        init_channel(self.iface, peers=None)
+        # Unicast-Peers, nicht nur Multicast. Multicast-Discovery erreicht
+        # diesen Roboter nicht zuverlaessig (steht so in unitree_dds.py), und
+        # mit peers=None ging es nur so lange gut, wie der Adapter genau EINE
+        # Adresse hatte. Seit fuer die LARA eine zweite Adresse (192.168.2.100)
+        # auf demselben Interface liegt, waehlt CycloneDDS die falsche und der
+        # R1 antwortet nicht mehr -- gemessen: mit default_peers() kommt
+        # lowstate an, mit peers=None nicht.
+        init_channel(self.iface, peers=default_peers())
         self._crc = CRC()
         # Held on the instance: a subscriber that goes out of scope is garbage
         # collected and the readings silently freeze.

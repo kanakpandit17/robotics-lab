@@ -136,7 +136,19 @@ class ArmChain:
         # A relaxed pose well inside the limits: arm hanging, slight elbow
         # bend. Used to seed IK and to resolve the redundant DOF, so repeated
         # solves stay near a natural posture instead of wandering.
-        self.rest = np.clip(np.array([0.0, -0.2, 0.0, 0.3, 0.0]),
+        #
+        # Shoulder roll must be mirrored per side. Both arms roll about +x,
+        # but their limits are mirror images -- right runs -142..+13 deg and
+        # left -13..+142 -- so one literal -0.2 rad for both put the LEFT
+        # arm's seed 1.5 deg off its inner stop while the right had 130 deg
+        # of headroom. It was not a near miss: fk(rest) placed the right hand
+        # at y = -0.185 m and the left at only y = +0.092 m, a "neutral" pose
+        # 9 cm less abducted on one side, with the solver starting pinned
+        # against a limit it could only leave in one direction. Mirroring the
+        # sign makes fk(rest) symmetric to the millimetre, which is the check
+        # that this is right rather than merely less wrong.
+        roll_rest = -0.2 if side == "right" else 0.2
+        self.rest = np.clip(np.array([0.0, roll_rest, 0.0, 0.3, 0.0]),
                            self.lower, self.upper)
         self._reach: float | None = None    # filled lazily by reach()
 

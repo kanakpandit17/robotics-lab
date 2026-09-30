@@ -15,15 +15,35 @@ _SENTINEL = "R1VISION_REEXEC"
 
 
 def venv_python() -> Path | None:
-    root = Path(__file__).resolve().parent.parent / ".venv"
-    # Windows venvs put the interpreter in Scripts\python.exe, not bin/python.
-    # Checking only the POSIX layout meant this reported "no .venv was found"
-    # on Windows even with a complete, working .venv sitting right there --
-    # an environment problem disguised as a missing one. Hit for real: running
-    # from a different interpreter (a conda env with no cyclonedds) took the
-    # branch that needs this function, which every same-process check this
-    # session had quietly skipped by already being cyclonedds-equipped.
-    for candidate in (root / "bin" / "python", root / "Scripts" / "python.exe"):
+    """The project interpreter for THIS platform, or None.
+
+    Windows venvs put the interpreter in Scripts\\python.exe, not bin/python.
+    Checking only the POSIX layout meant this reported "no .venv was found"
+    on Windows even with a complete, working .venv sitting right there --
+    an environment problem disguised as a missing one. Hit for real: running
+    from a different interpreter (a conda env with no cyclonedds) took the
+    branch that needs this function, which every same-process check this
+    session had quietly skipped by already being cyclonedds-equipped.
+
+    The layouts must not be tried in one flat list, though. Under WSL the repo
+    is visible at /mnt/c/..., so `.venv/bin/python` is absent and the old flat
+    order fell through to `.venv/Scripts/python.exe` -- a WINDOWS executable,
+    which WSL interop will happily exec. That is never right: a Linux process
+    re-execing the Windows interpreter lands back in the Windows environment,
+    and here it landed on the one binary Smart App Control blocks, turning a
+    working Linux setup into the exact error the user was escaping. So each
+    platform only ever considers its own layout.
+
+    `.venv-linux` is preferred on POSIX because `.venv` in this repo is a
+    Windows venv living on the same shared filesystem.
+    """
+    root = Path(__file__).resolve().parent.parent
+    if os.name == "nt":
+        candidates = (root / ".venv" / "Scripts" / "python.exe",)
+    else:
+        candidates = (root / ".venv-linux" / "bin" / "python",
+                      root / ".venv" / "bin" / "python")
+    for candidate in candidates:
         if candidate.exists():
             return candidate
     return None
