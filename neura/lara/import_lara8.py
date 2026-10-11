@@ -16,7 +16,7 @@ from isaacsim import SimulationApp
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--headless", type=lambda s: s.lower() != "false", default=True)
-parser.add_argument("--urdf", default=r"C:\Users\aimat\Desktop\humanoid\robotics-lab\lara8\lara8.urdf")
+parser.add_argument("--urdf", default=r"C:\Users\aimat\Desktop\humanoid\robotics-lab\neura\lara\lara8\lara8.urdf")
 parser.add_argument("--out", default=r"C:\Users\aimat\Desktop\humanoid\imported_cad\lara8.usd")
 args_cli = parser.parse_args()
 

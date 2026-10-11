@@ -13,9 +13,9 @@ NVIDIA GR00T data pipeline, `.e57` point-cloud import, and Meta Quest 3 FPV.
 | `r1_walk_train.py`, `r1_*_nav*_train.py`, `r1_cfg.py` | RL training (rsl_rl PPO) — walking + hierarchical nav |
 | `r1_cell*.py`, `r1_maira_scene.py`, `drive_r1.py` | Deploy/demo scenes (R1 + MAiRA + KUKA cell) |
 | `models/` | **Trained policies** (walking `r1_flat_v2_model_3999.pt`, nav `r1_nav_v3_model_3798.pt`, exported `policy.pt`, …) |
-| `imported_cad/` | Converted USDs (R1, MAiRA `maira7M.usd`, KUKA cell) |
-| `unitree_r1/`, `neura_robot_description/` | Source robot URDF/xacro/meshes |
-| `maira_sim_bridge.py` | MAiRA sim↔real bridge (Windows/Isaac side; neura side lives in the neura repo) |
+| `imported_cad/` | Converted USDs (R1, KUKA cell) |
+| `unitree_r1/` | Source robot URDF/xacro/meshes |
+| `neura/` | Everything Neura (MAiRA 7M + LARA 8): descriptions, USDs, sim↔real bridges — see `neura/README.md` |
 | `r1_record_ik.py`, `r1_groot_config.py`, `finetune_r1_groot.sh` | GR00T dataset + fine-tune config |
 | `e57_to_usd.py`, `e57_view.py`, `e57_render.py`, `e57_locate.py` | `.e57` laser-scan → Isaac point cloud + registration |
 | `r1_quest_fpv.py`, `r1_image_server.py` | Meta Quest 3 FPV (Vuer) + robot camera server |
