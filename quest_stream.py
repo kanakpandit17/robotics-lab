@@ -18,6 +18,18 @@ needs a signalling server and TURN setup. MJPEG lands around 150-300 ms on a
 local network, which is fine for watching, and it is about 40 lines instead of
 a thousand.
 
+Video only by default
+---------------------
+The video is read over RTSP and needs nothing from the robot's controller, so
+the robot stays in AI mode: no `r1_mode.py --release` for watching. Gesture
+buttons and the /action endpoint are off unless `--gestures` is given, for the
+same reason `--walk` and `--teleop` are: starting the video feed should never
+be able to move an arm. For a TV or a laptop screen:
+
+    python quest_stream.py --http        # then http://localhost:8080/flat
+
+/flat is the video alone, without the control panel.
+
 Networking
 ----------
 The Quest has to reach this Mac. The robot's own Wi-Fi AP is the easiest way,
@@ -185,7 +197,9 @@ class Handler(BaseHTTPRequestHandler):
                                teleop_driver is not None,
                                _recorder["instance"] is not None,
                                teleop_hands=(teleop_driver.hands
-                                            if teleop_driver else ())).encode()
+                                            if teleop_driver else ()),
+                               actions=None if self.server.gestures else {}
+                               ).encode()
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
@@ -468,6 +482,7 @@ class Server(ThreadingHTTPServer):
     # see r1vision/tls.context() for why that difference wedged the server.
     ssl_ctx = None
     handshake_timeout = 10.0
+    gestures = False     # main() turns this on only with --gestures
 
     def process_request_thread(self, request, client_address):
         if self.ssl_ctx is not None:
@@ -577,8 +592,14 @@ def main() -> int:
     ap.add_argument("--scale", type=float, default=1.0)
     ap.add_argument("--arm-iface", default="auto",
                     help="interface for arm control (ethernet to the robot)")
+    ap.add_argument("--gestures", action="store_true",
+                    help="enable the gesture buttons and the /action endpoint. "
+                         "Off by default: starting the video feed should never "
+                         "be able to move an arm")
     ap.add_argument("--no-control", action="store_true",
-                    help="video only; disable the /action endpoint")
+                    help="video only. This is the default now; the flag is kept "
+                         "so older commands still work, and it overrides "
+                         "--gestures")
     ap.add_argument("--walk", action="store_true",
                     help="enable driving from the thumbsticks. Off by default: "
                          "starting the video feed should never be able to make "
@@ -721,7 +742,11 @@ def main() -> int:
     server = Server(("0.0.0.0", args.port), Handler)
     server.arm_iface = args.arm_iface
     server.deadman = args.deadman
-    if args.no_control:
+    server.gestures = args.gestures and not args.no_control
+    if server.gestures:
+        print("  arm gestures ENABLED: page buttons and Quest buttons can move "
+              "the arms")
+    else:
         globals()["trigger_action"] = lambda *a, **k: (False, "control disabled")
 
     addrs = [ip for _, ip in local_addresses()]

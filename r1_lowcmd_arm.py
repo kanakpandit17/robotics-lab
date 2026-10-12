@@ -48,11 +48,14 @@ RIGHT_ARM = [22, 23, 24, 25, 26]   # shoulder pitch/roll/yaw, elbow, wrist roll
 LEFT_ARM = [15, 16, 17, 18, 19]
 SHOULDER_PITCH = {"right": 22, "left": 15}
 
-# Manual limits (rad) for the joints this script drives.
+# Limits (rad) for the joints this script drives, from unitree_r1/R1.urdf. The
+# left and right shoulder roll mirror each other; the manual's page 29 gives the
+# left arm the right arm's roll range, which blocked the left arm beyond 13 deg
+# outward and would have allowed 142 deg inward.
 LIMITS = {
     22: (-3.1416, 2.0944), 23: (-2.4784, 0.2269), 24: (-1.9199, 1.9199),
     25: (-0.9757, 2.1850), 26: (-1.9199, 1.9199),
-    15: (-3.1416, 2.0944), 16: (-2.4784, 0.2269), 17: (-1.9199, 1.9199),
+    15: (-3.1416, 2.0944), 16: (-0.2269, 2.4784), 17: (-1.9199, 1.9199),
     18: (-0.9757, 2.1850), 19: (-1.9199, 1.9199),
 }
 

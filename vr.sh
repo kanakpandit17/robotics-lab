@@ -8,8 +8,9 @@
 #
 # Any quest_stream.py flag passes through:  ./vr.sh --quality 60
 #
-# Video and arm gestures only by default. To drive the robot from the
-# thumbsticks, ./vr.sh --walk -- see WALKING.md, and run r1_walk.py first.
+# Video only by default; ./vr.sh --gestures adds the gesture buttons. To drive
+# the robot from the thumbsticks, ./vr.sh --walk -- see WALKING.md, and run
+# r1_walk.py first.
 
 set -euo pipefail
 cd "$(dirname "$0")"
