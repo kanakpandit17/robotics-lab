@@ -196,8 +196,7 @@ class _FootGrid:
         self.sole = ((xs.abs() <= SOLE_HALF[0]) & (ys.abs() <= SOLE_HALF[1])).to(device)
 
 
-def unsafe_stepping(env, d_unsafe=0.15, d_min=0.10, cone_deg=30.0, w_colli=1.0, w_edge=1.0,
-                    asset_cfg=SceneEntityCfg("robot", body_names=["left_ankle_roll_link", "right_ankle_roll_link"], preserve_order=True)):
+def unsafe_stepping(env, asset_cfg, d_unsafe=0.15, d_min=0.10, cone_deg=30.0, w_colli=1.0, w_edge=1.0):
     """Dense penalty from 2603.07928, per foot, summed (<= 0).
 
     collision: foot moving horizontally toward a riser closer than d_unsafe (riser = grid cell that
@@ -350,7 +349,10 @@ class R1StairsEnvCfg(G1RoughEnvCfg):
         R.joint_deviation = RewTerm(func=mdp.joint_deviation_l1, weight=-0.5, params={"asset_cfg": SceneEntityCfg(
             "robot", joint_names=[".*_hip_yaw_joint", ".*_hip_roll_joint", "waist_.*", ".*_shoulder_.*", ".*_elbow_joint", ".*_wrist_roll_joint", "head_.*"])})
         R.termination = RewTerm(func=mdp.is_terminated, weight=-250.0)
-        R.unsafe_stepping = RewTerm(func=unsafe_stepping, weight=1.0)
+        # asset_cfg must go through params: Isaac Lab only resolves body_ids for SceneEntityCfgs it finds
+        # there, and a default-argument one crashes on the first step ('slice' object is not subscriptable)
+        R.unsafe_stepping = RewTerm(func=unsafe_stepping, weight=1.0, params={"asset_cfg": SceneEntityCfg(
+            "robot", body_names=["left_ankle_roll_link", "right_ankle_roll_link"], preserve_order=True)})
         # not in the paper's table: keeps the ankles off their stops on steep steps
         R.dof_pos_limits = RewTerm(func=mdp.joint_pos_limits, weight=-1.0,
                                    params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*_ankle_.*")})

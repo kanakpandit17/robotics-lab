@@ -54,6 +54,11 @@ LIMITS = {
     25: (-0.9757, 2.1850), 26: (-1.9199, 1.9199),
     15: (-3.1416, 2.0944), 16: (-2.4784, 0.2269), 17: (-1.9199, 1.9199),
     18: (-0.9757, 2.1850), 19: (-1.9199, 1.9199),
+    # Head, read off unitree_r1/R1.urdf rather than the manual, because these
+    # are the two slots the arm_sdk mistake was writing into blind. 29 is the
+    # HEAD_PITCH the blend weight was landing on.
+    29: (-0.62832, 0.62832),    # head_pitch_joint, +-36 deg
+    30: (-2.0071, 2.0071),      # head_yaw_joint,  +-115 deg
 }
 
 CONTROL_HZ = 100
