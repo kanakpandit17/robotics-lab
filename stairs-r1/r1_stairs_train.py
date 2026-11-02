@@ -30,6 +30,8 @@ Changed, and why:
     command, terrain level 0.009, 0 / 6 steps climbed. Hence: lin tracking exp(-16 e^2) not exp(-4 e^2),
     air time scaled by progress along the command, and an easier curriculum promotion (see
     terrain_levels_progress). Check with --eval before trusting the reward.
+  * run 2 (those fixes) walked, but in circles on the start platform (path 11 m, displacement 0.9 m,
+    0.6 rad/s at a zero yaw command). Hence ang tracking exp(-16 e^2) too; run 3 resumes run 2 @4800.
 """
 import argparse
 
@@ -367,7 +369,9 @@ class R1StairsEnvCfg(G1RoughEnvCfg):
         # lin std 0.25 = exp(-16 e^2), not the paper's exp(-4 e^2): at 0.5, standing still still scored
         # ~half the term against a typical command, and run 1 settled for that (0.06 m/s at vx=0.7)
         R.track_lin_vel = RewTerm(func=track_exp, weight=5.0, params={"std": 0.25, "kind": "lin"})
-        R.track_ang_vel = RewTerm(func=track_exp, weight=5.0, params={"std": 0.5, "kind": "ang"})
+        # ang std 0.25 too: at 0.5, run 2 walked 0.53 m/s in ~1.8 m circles (0.6 rad/s at wz=0) on the
+        # start platform -- body-frame lin tracking was satisfied and it never had to touch a stair
+        R.track_ang_vel = RewTerm(func=track_exp, weight=5.0, params={"std": 0.25, "kind": "ang"})
         R.base_height = RewTerm(func=base_height_exp, weight=1.0, params={"sensor_cfg": SceneEntityCfg("height_scanner")})
         R.feet_air_time = RewTerm(func=feet_air_time_moving, weight=7.0,
                                   params={"command_name": "base_velocity", "sensor_cfg": feet, "threshold": 1.0})
@@ -513,7 +517,8 @@ def run_eval():
     zmax, zmin = z0.clone(), z0.clone()
     alive = torch.ones(u.num_envs, dtype=torch.bool, device=u.device)
     fell = torch.zeros_like(alive)
-    dist, vx_sum, steps = (torch.zeros(u.num_envs, device=u.device) for _ in range(3))
+    dist, vx_sum, steps, path, wz_sum = (torch.zeros(u.num_envs, device=u.device) for _ in range(5))
+    prev_xy = xy0.clone()
     T = int(u.max_episode_length) - 2
     with torch.inference_mode():
         for _ in range(T):
@@ -524,6 +529,9 @@ def run_eval():
             zmin = torch.where(live, torch.minimum(zmin, p[:, 2]), zmin)
             dist = torch.where(live, (p[:, :2] - xy0).norm(dim=1), dist)
             vx_sum += torch.where(live, robot.data.root_lin_vel_b[:, 0], torch.zeros_like(dist))
+            wz_sum += torch.where(live, robot.data.root_ang_vel_b[:, 2].abs(), torch.zeros_like(dist))
+            path += torch.where(live, (p[:, :2] - prev_xy).norm(dim=1), torch.zeros_like(dist))
+            prev_xy = p[:, :2].clone()
             steps += live.float()
             fell |= alive & dones & ~extras.get("time_outs", torch.zeros_like(dones)).bool()
             alive &= ~dones
@@ -534,7 +542,8 @@ def run_eval():
         m = kind == k
         h = (zmax - z0)[m] if name == "up" else (z0 - zmin)[m]
         print(f"{name:5s} n={int(m.sum()):3d}  upright={100 * (~fell[m]).float().mean():5.1f}%  "
-              f"vx={(vx_sum[m] / steps[m].clamp_min(1)).mean():.2f} m/s  dist={dist[m].mean():.2f} m  "
+              f"vx={(vx_sum[m] / steps[m].clamp_min(1)).mean():.2f} m/s  |wz|={(wz_sum[m] / steps[m].clamp_min(1)).mean():.2f} rad/s  "
+              f"path={path[m].mean():.2f} m  dist={dist[m].mean():.2f} m  "
               f"dz={h.mean():.2f} m  >=1 step={100 * (h > 0.8 * rise).float().mean():.0f}%  "
               f"full flight={100 * (h > 0.9 * flight).float().mean():.0f}%", flush=True)
     print("R1_STAIRS_EVAL_DONE", flush=True)
