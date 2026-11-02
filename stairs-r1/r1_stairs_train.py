@@ -31,7 +31,8 @@ Changed, and why:
     air time scaled by progress along the command, and an easier curriculum promotion (see
     terrain_levels_progress). Check with --eval before trusting the reward.
   * run 2 (those fixes) walked, but in circles on the start platform (path 11 m, displacement 0.9 m,
-    0.6 rad/s at a zero yaw command). Hence ang tracking exp(-16 e^2) too; run 3 resumes run 2 @4800.
+    0.6 rad/s at a zero yaw command). Run 3 (resume of run 2 @4800) tried ang tracking exp(-16 e^2)
+    and circled more (0.86 rad/s @6400). Run 4: back to exp(-4 e^2) plus an L2 yaw-error penalty.
 """
 import argparse
 
@@ -163,6 +164,12 @@ def track_exp(env, std, kind, command_name="base_velocity", asset_cfg=SceneEntit
     else:
         err = (cmd[:, 2] - robot.data.root_ang_vel_b[:, 2]).square()
     return torch.exp(-err / std**2)
+
+
+def ang_vel_err_l2(env, command_name="base_velocity", asset_cfg=SceneEntityCfg("robot")):
+    """(wz_cmd - wz)^2: unlike the exp kernel it never saturates, so circling always costs."""
+    robot, cmd = env.scene[asset_cfg.name], env.command_manager.get_command(command_name)
+    return (cmd[:, 2] - robot.data.root_ang_vel_b[:, 2]).square()
 
 
 def feet_air_time_moving(env, command_name, threshold, sensor_cfg, asset_cfg=SceneEntityCfg("robot")):
@@ -369,9 +376,11 @@ class R1StairsEnvCfg(G1RoughEnvCfg):
         # lin std 0.25 = exp(-16 e^2), not the paper's exp(-4 e^2): at 0.5, standing still still scored
         # ~half the term against a typical command, and run 1 settled for that (0.06 m/s at vx=0.7)
         R.track_lin_vel = RewTerm(func=track_exp, weight=5.0, params={"std": 0.25, "kind": "lin"})
-        # ang std 0.25 too: at 0.5, run 2 walked 0.53 m/s in ~1.8 m circles (0.6 rad/s at wz=0) on the
-        # start platform -- body-frame lin tracking was satisfied and it never had to touch a stair
-        R.track_ang_vel = RewTerm(func=track_exp, weight=5.0, params={"std": 0.25, "kind": "ang"})
+        # ang stays at the paper's exp(-4 e^2). Run 2 walked in ~1.8 m circles (0.6 rad/s at wz=0) on the
+        # start platform; run 3 tried std 0.25 and circled MORE (0.86 rad/s): with |wz| commands up to 1,
+        # the narrow kernel is flat almost everywhere and gives no gradient. The L2 term below does.
+        R.track_ang_vel = RewTerm(func=track_exp, weight=5.0, params={"std": 0.5, "kind": "ang"})
+        R.ang_vel_err = RewTerm(func=ang_vel_err_l2, weight=-1.0)
         R.base_height = RewTerm(func=base_height_exp, weight=1.0, params={"sensor_cfg": SceneEntityCfg("height_scanner")})
         R.feet_air_time = RewTerm(func=feet_air_time_moving, weight=7.0,
                                   params={"command_name": "base_velocity", "sensor_cfg": feet, "threshold": 1.0})
