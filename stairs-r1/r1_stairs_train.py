@@ -131,7 +131,11 @@ def _stairs(width, inv):
                platform_width=3.0, border_width=1.0, holes=False)
 
 
+# curriculum=True must be set HERE: the base env's __post_init__ turns it on for ITS generator, and
+# this one replaces that afterwards. Runs 1-4 had it False -- every tile a random type at a random
+# difficulty, so "terrain level" meant nothing and stairs up to 23 cm appeared from iteration 0.
 STAIRS_TERRAINS = terrain_gen.TerrainGeneratorCfg(
+    curriculum=True,
     size=(8.0, 8.0), border_width=20.0, num_rows=10, num_cols=20,
     horizontal_scale=0.1, vertical_scale=0.005, slope_threshold=0.75, use_cache=False,
     sub_terrains={
@@ -544,9 +548,11 @@ def run_eval():
             steps += live.float()
             fell |= alive & dones & ~extras.get("time_outs", torch.zeros_like(dones)).bool()
             alive &= ~dones
-    rise, flight = args_cli.rise, 6 * args_cli.rise
-    print(f"\n=== R1 stairs eval  {args_cli.checkpoint}\n    rise {rise} m, tread {EVAL_TREAD} m, 6-step flight "
-          f"{flight:.2f} m, vx_cmd 0.7, {T} steps ===")
+    rise = args_cli.rise
+    # Isaac puts a pyramid's origin at +-(num_steps + 1) * rise: that is the height to the border
+    flight = u.scene.env_origins[kind == 2, 2].mean().item()
+    print(f"\n=== R1 stairs eval  {args_cli.checkpoint}\n    rise {rise} m, tread {EVAL_TREAD} m, flight "
+          f"{flight:.2f} m ({round(flight / rise)} risers), vx_cmd 0.7, {T} steps ===")
     for k, name in enumerate(("flat", "up", "down")):
         m = kind == k
         h = (zmax - z0)[m] if name == "up" else (z0 - zmin)[m]
