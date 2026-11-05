@@ -33,6 +33,8 @@ Changed, and why:
   * run 2 (those fixes) walked, but in circles on the start platform (path 11 m, displacement 0.9 m,
     0.6 rad/s at a zero yaw command). Run 3 (resume of run 2 @4800) tried ang tracking exp(-16 e^2)
     and circled more (0.86 rad/s @6400). Run 4: back to exp(-4 e^2) plus an L2 yaw-error penalty.
+  * runs 5-6 (curriculum actually on): 8 cm solved @20k, 12 cm solved @30k, 17 cm attempted but
+    falling; the level rose only ~0.2 / 1000 iters, so promotion distance lowered 3.0 -> 2.5 m (run 7).
 """
 import argparse
 
@@ -185,7 +187,7 @@ def feet_air_time_moving(env, command_name, threshold, sensor_cfg, asset_cfg=Sce
     return loco_mdp.feet_air_time_positive_biped(env, command_name, threshold, sensor_cfg) * progress
 
 
-def terrain_levels_progress(env, env_ids, up_dist=3.0, down_frac=0.25, asset_cfg=SceneEntityCfg("robot")):
+def terrain_levels_progress(env, env_ids, up_dist=2.5, down_frac=0.25, asset_cfg=SceneEntityCfg("robot")):
     """terrain_levels_vel with an easier promotion: up once the robot clears the flight (3 m from the
     centre = top/bottom of the stairs, vs 4 m stock), down only below 25 % of the commanded distance
     (stock 50 %). Run 1 never got off level 0 under the stock rule."""
@@ -503,7 +505,7 @@ def export_meta(path):
     meta = {
         "dt": u.step_dt, "decimation": cfg.decimation,
         "obs_terms": list(om.active_terms["policy"]),
-        "obs_dims": [list(d) for d in om.group_obs_term_dim["policy"]],
+        "obs_dims": [[int(x) for x in d] for d in om.group_obs_term_dim["policy"]],   # numpy ints otherwise
         "joint_names": jn,
         "obs_joint_names": list(robot.joint_names),     # joint_pos_rel / joint_vel_rel use articulation order
         "default_joint_pos": robot.data.default_joint_pos[0].tolist(),

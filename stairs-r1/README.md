@@ -36,6 +36,19 @@ python   stairs-r1/eval_mujoco.py --policy stairs-r1/policy --headless --vx 0.7
 scale and the exact height-map ray layout. Because of that, the MuJoCo side rebuilds Isaac's
 observation exactly rather than guessing it.
 
+## Status (2026-11-05): not yet good enough for staircase 3
+`policy/` holds the run-6 export (iteration 30197). Test it with `--eval` (Isaac, headless):
+64 robots per terrain, vx 0.7 m/s, 0.22 m treads, 8-step flights.
+
+| Rise | Up: upright / full flight | Down: upright / full flight |
+|---|---|---|
+| 8 cm (run 5) | 100 % / 100 % | 100 % / 100 % |
+| 12 cm | 100 % / 100 % | 81 % / 92 % |
+| 17 cm | 39 % / 12 % (78 % climb ≥ 1 step) | 69 % / 0 % |
+
+Flat ground: 0.68 m/s, straight, never falls. So 17 cm is the edge: the policy tries, but it falls
+partway. Run 7 resumes with faster curriculum promotion. Runs 1–4 were broken, as the docstring says.
+
 ## Things that differ from the paper (see the train script's docstring)
 - Height map from ground truth (ray cast) with ±2 cm noise. The paper's LiDAR + EGAU pipeline is the real-robot step.
 - MLP actor and critic. The paper uses MLP + CNN.
