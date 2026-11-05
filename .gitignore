@@ -55,3 +55,10 @@ Thumbs.db
 
 # ===== Editor-local settings (machine specific) =====
 .vscode/
+
+# ===== Neura SDK downloads (multi-GB vendor archives) =====
+neura/thesis_Kanak/*.zip
+neura/thesis_Kanak/*.tar.gz
+neura/thesis_Kanak/NeuraAISDK-v3.3.12/
+neura/thesis_Kanak/neura-sdk/
+neura/thesis_Kanak/.claude/

@@ -6,6 +6,7 @@ Elevation Mapping". Trained here in Isaac Lab, then tested on ARENA2036 staircas
     python stairs-r1/r1_stairs_train.py                           # train (headless)
     python stairs-r1/r1_stairs_train.py --play   --checkpoint ... # watch
     python stairs-r1/r1_stairs_train.py --export --checkpoint ... # policy.pt + r1_stairs_meta.json for MuJoCo
+    python stairs-r1/r1_stairs_train.py --eval   --checkpoint ... [--rise 0.17]  # headless: flat / up / down at vx=0.7
 
 Taken from the paper:
   * proprio obs: base ang vel, projected gravity, command, joint pos, joint vel, last action
@@ -25,6 +26,15 @@ Changed, and why:
     foot is to the ground. Joint-torque L2 is on torques normalised by the effort limit (-0.2 on raw
     N.m^2 would swamp everything)
   * effort limits come from unitree_r1/R1.urdf (60 / 50 / 33 N.m), not r1_cfg.py's 300 N.m
+  * run 1 (12k iters, paper rewards) learned to MARCH IN PLACE: 100 % upright, 0.06 m/s at a 0.7 m/s
+    command, terrain level 0.009, 0 / 6 steps climbed. Hence: lin tracking exp(-16 e^2) not exp(-4 e^2),
+    air time scaled by progress along the command, and an easier curriculum promotion (see
+    terrain_levels_progress). Check with --eval before trusting the reward.
+  * run 2 (those fixes) walked, but in circles on the start platform (path 11 m, displacement 0.9 m,
+    0.6 rad/s at a zero yaw command). Run 3 (resume of run 2 @4800) tried ang tracking exp(-16 e^2)
+    and circled more (0.86 rad/s @6400). Run 4: back to exp(-4 e^2) plus an L2 yaw-error penalty.
+  * runs 5-6 (curriculum actually on): 8 cm solved @20k, 12 cm solved @30k, 17 cm attempted but
+    falling; the level rose only ~0.2 / 1000 iters, so promotion distance lowered 3.0 -> 2.5 m (run 7).
 """
 import argparse
 
@@ -35,12 +45,15 @@ parser.add_argument("--num_envs", type=int, default=4096)
 parser.add_argument("--max_iterations", type=int, default=12000)   # the paper's curves run 12k
 parser.add_argument("--play", action="store_true", default=False)
 parser.add_argument("--export", action="store_true", default=False, help="headless: TorchScript policy + meta json for eval_mujoco.py")
+parser.add_argument("--eval", action="store_true", default=False, help="headless: fixed stairs, vx=0.7, prints upright / speed / steps climbed")
+parser.add_argument("--rise", type=float, default=0.17, help="--eval step height (staircase 3: 0.17)")
 parser.add_argument("--resume", action="store_true", default=False)
-parser.add_argument("--checkpoint", type=str, default=r"C:\Users\aimat\Desktop\humanoid\IsaacLab\logs\rsl_rl\r1_stairs\model_11999.pt")
+parser.add_argument("--run_name", type=str, default="r1_stairs_v2", help="log dir under IsaacLab/logs/rsl_rl (run 1 = r1_stairs)")
+parser.add_argument("--checkpoint", type=str, default=r"C:\Users\aimat\Desktop\humanoid\IsaacLab\logs\rsl_rl\r1_stairs_v2\model_11999.pt")
 AppLauncher.add_app_launcher_args(parser)
 args_cli, _ = parser.parse_known_args()
 args_cli.headless = not args_cli.play
-if args_cli.export:
+if args_cli.export or args_cli.eval:
     args_cli.headless = True
 
 import importlib.machinery as _mach  # noqa: E402
@@ -65,6 +78,7 @@ import isaaclab.sim as sim_utils  # noqa: E402
 import isaaclab.terrains as terrain_gen  # noqa: E402
 from isaaclab.actuators import ImplicitActuatorCfg  # noqa: E402
 from isaaclab.envs import mdp  # noqa: E402
+from isaaclab.managers import CurriculumTermCfg as CurrTerm  # noqa: E402
 from isaaclab.managers import EventTermCfg as EventTerm  # noqa: E402
 from isaaclab.managers import ObservationGroupCfg as ObsGroup  # noqa: E402
 from isaaclab.managers import ObservationTermCfg as ObsTerm  # noqa: E402
@@ -119,7 +133,11 @@ def _stairs(width, inv):
                platform_width=3.0, border_width=1.0, holes=False)
 
 
+# curriculum=True must be set HERE: the base env's __post_init__ turns it on for ITS generator, and
+# this one replaces that afterwards. Runs 1-4 had it False -- every tile a random type at a random
+# difficulty, so "terrain level" meant nothing and stairs up to 23 cm appeared from iteration 0.
 STAIRS_TERRAINS = terrain_gen.TerrainGeneratorCfg(
+    curriculum=True,
     size=(8.0, 8.0), border_width=20.0, num_rows=10, num_cols=20,
     horizontal_scale=0.1, vertical_scale=0.005, slope_threshold=0.75, use_cache=False,
     sub_terrains={
@@ -152,6 +170,34 @@ def track_exp(env, std, kind, command_name="base_velocity", asset_cfg=SceneEntit
     else:
         err = (cmd[:, 2] - robot.data.root_ang_vel_b[:, 2]).square()
     return torch.exp(-err / std**2)
+
+
+def ang_vel_err_l2(env, command_name="base_velocity", asset_cfg=SceneEntityCfg("robot")):
+    """(wz_cmd - wz)^2: unlike the exp kernel it never saturates, so circling always costs."""
+    robot, cmd = env.scene[asset_cfg.name], env.command_manager.get_command(command_name)
+    return (cmd[:, 2] - robot.data.root_ang_vel_b[:, 2]).square()
+
+
+def feet_air_time_moving(env, command_name, threshold, sensor_cfg, asset_cfg=SceneEntityCfg("robot")):
+    """feet_air_time_positive_biped, scaled by progress along the command (0..1). Without the scale,
+    marching in place earned the full air-time reward and run 1 learned exactly that."""
+    robot, cmd = env.scene[asset_cfg.name], env.command_manager.get_command(command_name)[:, :2]
+    c2 = cmd.square().sum(dim=1).clamp_min(1e-6)
+    progress = ((robot.data.root_lin_vel_b[:, :2] * cmd).sum(dim=1) / c2).clamp(0.0, 1.0)
+    return loco_mdp.feet_air_time_positive_biped(env, command_name, threshold, sensor_cfg) * progress
+
+
+def terrain_levels_progress(env, env_ids, up_dist=2.5, down_frac=0.25, asset_cfg=SceneEntityCfg("robot")):
+    """terrain_levels_vel with an easier promotion: up once the robot clears the flight (3 m from the
+    centre = top/bottom of the stairs, vs 4 m stock), down only below 25 % of the commanded distance
+    (stock 50 %). Run 1 never got off level 0 under the stock rule."""
+    robot, terrain = env.scene[asset_cfg.name], env.scene.terrain
+    cmd = env.command_manager.get_command("base_velocity")
+    dist = torch.norm(robot.data.root_pos_w[env_ids, :2] - env.scene.env_origins[env_ids, :2], dim=1)
+    move_up = dist > up_dist
+    move_down = (dist < torch.norm(cmd[env_ids, :2], dim=1) * env.max_episode_length_s * down_frac) & ~move_up
+    terrain.update_env_origins(env_ids, move_up, move_down)
+    return torch.mean(terrain.terrain_levels.float())
 
 
 def base_height_exp(env, sensor_cfg, asset_cfg=SceneEntityCfg("robot")):
@@ -196,8 +242,7 @@ class _FootGrid:
         self.sole = ((xs.abs() <= SOLE_HALF[0]) & (ys.abs() <= SOLE_HALF[1])).to(device)
 
 
-def unsafe_stepping(env, d_unsafe=0.15, d_min=0.10, cone_deg=30.0, w_colli=1.0, w_edge=1.0,
-                    asset_cfg=SceneEntityCfg("robot", body_names=["left_ankle_roll_link", "right_ankle_roll_link"], preserve_order=True)):
+def unsafe_stepping(env, asset_cfg, d_unsafe=0.15, d_min=0.10, cone_deg=30.0, w_colli=1.0, w_edge=1.0):
     """Dense penalty from 2603.07928, per foot, summed (<= 0).
 
     collision: foot moving horizontally toward a riser closer than d_unsafe (riser = grid cell that
@@ -287,6 +332,7 @@ class R1StairsEnvCfg(G1RoughEnvCfg):
         # ---- terrain + sensors
         self.scene.terrain.terrain_generator = STAIRS_TERRAINS
         self.scene.terrain.max_init_terrain_level = 3
+        self.curriculum.terrain_levels = CurrTerm(func=terrain_levels_progress)
         self.scene.height_scanner = RayCasterCfg(
             prim_path="{ENV_REGEX_NS}/Robot/pelvis_link",
             offset=RayCasterCfg.OffsetCfg(pos=(MAP_FORWARD, 0.0, 20.0)),
@@ -333,10 +379,16 @@ class R1StairsEnvCfg(G1RoughEnvCfg):
                 setattr(self.rewards, name, None)
         feet = SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link")
         R = self.rewards
-        R.track_lin_vel = RewTerm(func=track_exp, weight=5.0, params={"std": 0.5, "kind": "lin"})      # exp(-4 e^2)
+        # lin std 0.25 = exp(-16 e^2), not the paper's exp(-4 e^2): at 0.5, standing still still scored
+        # ~half the term against a typical command, and run 1 settled for that (0.06 m/s at vx=0.7)
+        R.track_lin_vel = RewTerm(func=track_exp, weight=5.0, params={"std": 0.25, "kind": "lin"})
+        # ang stays at the paper's exp(-4 e^2). Run 2 walked in ~1.8 m circles (0.6 rad/s at wz=0) on the
+        # start platform; run 3 tried std 0.25 and circled MORE (0.86 rad/s): with |wz| commands up to 1,
+        # the narrow kernel is flat almost everywhere and gives no gradient. The L2 term below does.
         R.track_ang_vel = RewTerm(func=track_exp, weight=5.0, params={"std": 0.5, "kind": "ang"})
+        R.ang_vel_err = RewTerm(func=ang_vel_err_l2, weight=-1.0)
         R.base_height = RewTerm(func=base_height_exp, weight=1.0, params={"sensor_cfg": SceneEntityCfg("height_scanner")})
-        R.feet_air_time = RewTerm(func=loco_mdp.feet_air_time_positive_biped, weight=7.0,
+        R.feet_air_time = RewTerm(func=feet_air_time_moving, weight=7.0,
                                   params={"command_name": "base_velocity", "sensor_cfg": feet, "threshold": 1.0})
         R.lin_vel_z = RewTerm(func=mdp.lin_vel_z_l2, weight=-1.0)
         R.ang_vel_xy = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.05)
@@ -350,7 +402,10 @@ class R1StairsEnvCfg(G1RoughEnvCfg):
         R.joint_deviation = RewTerm(func=mdp.joint_deviation_l1, weight=-0.5, params={"asset_cfg": SceneEntityCfg(
             "robot", joint_names=[".*_hip_yaw_joint", ".*_hip_roll_joint", "waist_.*", ".*_shoulder_.*", ".*_elbow_joint", ".*_wrist_roll_joint", "head_.*"])})
         R.termination = RewTerm(func=mdp.is_terminated, weight=-250.0)
-        R.unsafe_stepping = RewTerm(func=unsafe_stepping, weight=1.0)
+        # asset_cfg must go through params: Isaac Lab only resolves body_ids for SceneEntityCfgs it finds
+        # there, and a default-argument one crashes on the first step ('slice' object is not subscriptable)
+        R.unsafe_stepping = RewTerm(func=unsafe_stepping, weight=1.0, params={"asset_cfg": SceneEntityCfg(
+            "robot", body_names=["left_ankle_roll_link", "right_ankle_roll_link"], preserve_order=True)})
         # not in the paper's table: keeps the ankles off their stops on steep steps
         R.dof_pos_limits = RewTerm(func=mdp.joint_pos_limits, weight=-1.0,
                                    params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*_ankle_.*")})
@@ -383,16 +438,33 @@ from isaaclab_rl.rsl_rl import (  # noqa: E402
 )
 from rsl_rl.runners import OnPolicyRunner  # noqa: E402
 
-cfg = R1StairsEnvCfg_PLAY() if (args_cli.play or args_cli.export) else R1StairsEnvCfg()
+EVAL_TREAD, EVAL_N = 0.22, 64    # staircase 3 tread; robots per terrain kind
+
+cfg = R1StairsEnvCfg_PLAY() if (args_cli.play or args_cli.export or args_cli.eval) else R1StairsEnvCfg()
 if args_cli.export:
     cfg.scene.num_envs = 2
+elif args_cli.eval:
+    # 6 columns, 2 per kind: flat | pit (walk out = climb) | top platform (walk out = descend).
+    # 6 steps of --rise per flight. Fixed forward command; the pyramids have stairs on all 4 sides.
+    tg = cfg.scene.terrain.terrain_generator
+    tg.num_rows, tg.num_cols = 1, 6
+    _st = dict(proportion=1.0, step_height_range=(args_cli.rise, args_cli.rise), step_width=EVAL_TREAD,
+               platform_width=3.0, border_width=1.0, holes=False)
+    tg.sub_terrains = {"flat": terrain_gen.MeshPlaneTerrainCfg(proportion=1.0),
+                       "up": terrain_gen.MeshInvertedPyramidStairsTerrainCfg(**_st),
+                       "down": terrain_gen.MeshPyramidStairsTerrainCfg(**_st)}
+    cfg.scene.num_envs = 3 * EVAL_N
+    _r = cfg.commands.base_velocity.ranges
+    _r.lin_vel_x, _r.lin_vel_y, _r.ang_vel_z = (0.7, 0.7), (0.0, 0.0), (0.0, 0.0)
+    cfg.commands.base_velocity.rel_standing_envs = 0.0
+    cfg.commands.base_velocity.resampling_time_range = (1e6, 1e6)
 elif not args_cli.play:
     cfg.scene.num_envs = args_cli.num_envs
 env = ManagerBasedRLEnv(cfg=cfg)
 env = RslRlVecEnvWrapper(env)
 
 runner_kw = dict(
-    num_steps_per_env=24, max_iterations=args_cli.max_iterations, save_interval=200, experiment_name="r1_stairs",
+    num_steps_per_env=24, max_iterations=args_cli.max_iterations, save_interval=200, experiment_name=args_cli.run_name,
     policy=RslRlPpoActorCriticCfg(init_noise_std=1.0, actor_hidden_dims=[512, 256, 128], critic_hidden_dims=[512, 256, 128],
                                   activation="elu", actor_obs_normalization=True, critic_obs_normalization=True),
     algorithm=RslRlPpoAlgorithmCfg(value_loss_coef=1.0, use_clipped_value_loss=True, clip_param=0.2, entropy_coef=0.005,
@@ -402,7 +474,7 @@ runner_kw = dict(
 if "obs_groups" in {f.name for f in dataclasses.fields(RslRlOnPolicyRunnerCfg)}:
     runner_kw["obs_groups"] = {"policy": ["policy"], "critic": ["critic"]}
 agent_cfg = handle_deprecated_rsl_rl_cfg(RslRlOnPolicyRunnerCfg(**runner_kw), _metadata.version("rsl-rl-lib"))
-log_dir = r"C:\Users\aimat\Desktop\humanoid\IsaacLab\logs\rsl_rl\r1_stairs"
+log_dir = rf"C:\Users\aimat\Desktop\humanoid\IsaacLab\logs\rsl_rl\{args_cli.run_name}"
 runner = OnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=env.device)
 
 
@@ -433,7 +505,7 @@ def export_meta(path):
     meta = {
         "dt": u.step_dt, "decimation": cfg.decimation,
         "obs_terms": list(om.active_terms["policy"]),
-        "obs_dims": [list(d) for d in om.group_obs_term_dim["policy"]],
+        "obs_dims": [[int(x) for x in d] for d in om.group_obs_term_dim["policy"]],   # numpy ints otherwise
         "joint_names": jn,
         "obs_joint_names": list(robot.joint_names),     # joint_pos_rel / joint_vel_rel use articulation order
         "default_joint_pos": robot.data.default_joint_pos[0].tolist(),
@@ -448,7 +520,56 @@ def export_meta(path):
     Path(path).write_text(json.dumps(meta, indent=1))
 
 
-if args_cli.export:
+def run_eval():
+    """One 20 s episode per robot at vx=0.7. A robot counts until its first termination; a timeout
+    is not a fall. Reward alone hid run 1's march-in-place, so this measures speed and height."""
+    u = env.unwrapped
+    robot = u.scene["robot"]
+    kind = (u.scene.terrain.terrain_types // 2).long()          # 0 flat, 1 up, 2 down
+    policy = runner.get_inference_policy(device=u.device)
+    obs = _obs(env.get_observations())
+    z0, xy0 = robot.data.root_pos_w[:, 2].clone(), robot.data.root_pos_w[:, :2].clone()
+    zmax, zmin = z0.clone(), z0.clone()
+    alive = torch.ones(u.num_envs, dtype=torch.bool, device=u.device)
+    fell = torch.zeros_like(alive)
+    dist, vx_sum, steps, path, wz_sum = (torch.zeros(u.num_envs, device=u.device) for _ in range(5))
+    prev_xy = xy0.clone()
+    T = int(u.max_episode_length) - 2
+    with torch.inference_mode():
+        for _ in range(T):
+            obs, _, dones, extras = env.step(policy(obs))
+            dones = dones.bool()
+            p, live = robot.data.root_pos_w, alive & ~dones
+            zmax = torch.where(live, torch.maximum(zmax, p[:, 2]), zmax)
+            zmin = torch.where(live, torch.minimum(zmin, p[:, 2]), zmin)
+            dist = torch.where(live, (p[:, :2] - xy0).norm(dim=1), dist)
+            vx_sum += torch.where(live, robot.data.root_lin_vel_b[:, 0], torch.zeros_like(dist))
+            wz_sum += torch.where(live, robot.data.root_ang_vel_b[:, 2].abs(), torch.zeros_like(dist))
+            path += torch.where(live, (p[:, :2] - prev_xy).norm(dim=1), torch.zeros_like(dist))
+            prev_xy = p[:, :2].clone()
+            steps += live.float()
+            fell |= alive & dones & ~extras.get("time_outs", torch.zeros_like(dones)).bool()
+            alive &= ~dones
+    rise = args_cli.rise
+    # Isaac puts a pyramid's origin at +-(num_steps + 1) * rise: that is the height to the border
+    flight = u.scene.env_origins[kind == 2, 2].mean().item()
+    print(f"\n=== R1 stairs eval  {args_cli.checkpoint}\n    rise {rise} m, tread {EVAL_TREAD} m, flight "
+          f"{flight:.2f} m ({round(flight / rise)} risers), vx_cmd 0.7, {T} steps ===")
+    for k, name in enumerate(("flat", "up", "down")):
+        m = kind == k
+        h = (zmax - z0)[m] if name == "up" else (z0 - zmin)[m]
+        print(f"{name:5s} n={int(m.sum()):3d}  upright={100 * (~fell[m]).float().mean():5.1f}%  "
+              f"vx={(vx_sum[m] / steps[m].clamp_min(1)).mean():.2f} m/s  |wz|={(wz_sum[m] / steps[m].clamp_min(1)).mean():.2f} rad/s  "
+              f"path={path[m].mean():.2f} m  dist={dist[m].mean():.2f} m  "
+              f"dz={h.mean():.2f} m  >=1 step={100 * (h > 0.8 * rise).float().mean():.0f}%  "
+              f"full flight={100 * (h > 0.9 * flight).float().mean():.0f}%", flush=True)
+    print("R1_STAIRS_EVAL_DONE", flush=True)
+
+
+if args_cli.eval:
+    runner.load(args_cli.checkpoint)
+    run_eval()
+elif args_cli.export:
     import os as _os  # noqa: E402
     runner.load(args_cli.checkpoint)
     out = _os.path.join(_os.path.dirname(args_cli.checkpoint), "exported")
