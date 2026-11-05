@@ -18,11 +18,13 @@ Full discovery over ethernet shows the robot subscribes to rt/arm_sdk. That is
 the blended path: we command arm joints while the robot keeps running its own
 balance controller on the legs. rt/lowcmd would hand us every joint including
 the legs, where one bad frame drops a standing robot. We do not need that here.
+arm_sdk needs that controller running: use it in AI mode, never after
+`r1_mode.py --release`.
 
 JOINT MAP (measured on this robot, 35 slots, 24 real joints)
 ------------------------------------------------------------
-     0-5   left leg          6-11  right leg        12,13 waist yaw/roll
-    15-19  left arm         22-26  right arm
+     0-5   left leg          6-11  right leg        12,13 waist roll/yaw
+    15-19  left arm         22-26  right arm         29,30 head pitch/yaw
     shoulder pitch/roll/yaw, elbow, wrist roll
 
     22 = RIGHT SHOULDER PITCH   <- raising the arm
@@ -58,15 +60,32 @@ TOPIC_ARM = "rt/arm_sdk"
 RIGHT_SHOULDER_PITCH = 22
 RIGHT_ARM = [22, 23, 24, 25, 26]
 LEFT_ARM = [15, 16, 17, 18, 19]
+WAIST_YAW = 13
+HEAD = [29, 30]
 
-# G1 convention: the slot past the real joints carries the blend weight for
-# arm_sdk. 0 = robot keeps full authority, 1 = our arm commands apply.
-WEIGHT_SLOT = 29
+# The 13 joints arm_sdk takes over. At weight 1.0 each needs a target: Unitree's
+# take-over procedure holds every one at its measured position, because a joint
+# left out would get an empty command with no stiffness.
+ARM_SDK_JOINTS = LEFT_ARM + RIGHT_ARM + [WAIST_YAW] + HEAD
+
+# The R1 reads the arm_sdk blend weight from mode_pr, 0-100 for 0.0-1.0
+# (Unitree R1 arm_control_routine). Slot 29, where the G1 carries its weight, is
+# head pitch on the R1: writing the weight there left mode_pr at 0, so every
+# frame was blended out and the arm moved exactly 0.00 deg. Reported by one
+# owner: mode_pr >= 2 switches FSM 811 to 816, which locks walking until reset
+# (unitree_sdk2_python #182). First runs on the bracket, with the way back known.
+
+# Unitree's gains for the built-in arm action service (arm_control_routine).
+GAINS = {
+    15: (50.0, 2.0), 16: (50.0, 2.0), 17: (40.0, 2.0), 18: (40.0, 2.0),
+    19: (30.0, 2.0),
+    22: (50.0, 2.0), 23: (50.0, 2.0), 24: (40.0, 2.0), 25: (40.0, 2.0),
+    26: (30.0, 2.0),
+    13: (50.0, 3.0), 29: (15.0, 1.0), 30: (15.0, 1.0),
+}
 
 MAX_DEGREES = 60.0
 CONTROL_HZ = 100
-KP = 40.0
-KD = 1.0
 
 
 def deg(rad: float) -> float:
@@ -136,16 +155,16 @@ class Arm:
         # that do not match. It defaults to 0, which is never right -- it has
         # to be echoed back from lowstate.
         cmd.mode_machine = self.mode_machine
-        cmd.mode_pr = 0
+        cmd.mode_pr = int(round(100 * min(1.0, max(0.0, weight))))
 
         for idx, q in targets.items():
             m = cmd.motor_cmd[idx]
             # mode defaults to 0 = DISABLED. Without this the joint silently
             # ignores q/kp/kd and nothing moves at all.
             m.mode = 1
-            m.q, m.dq, m.kp, m.kd, m.tau = q, 0.0, KP, KD, 0.0
+            kp, kd = GAINS[idx]
+            m.q, m.dq, m.kp, m.kd, m.tau = q, 0.0, kp, kd, 0.0
 
-        cmd.motor_cmd[WEIGHT_SLOT].q = weight
         cmd.crc = self._crc.Crc(cmd)
         self._pub.Write(cmd)
 
@@ -159,7 +178,7 @@ def show_joints(arm: Arm) -> None:
         17: "left shoulder yaw", 18: "left elbow", 19: "left wrist roll",
         22: "RIGHT SHOULDER PITCH", 23: "right shoulder roll",
         24: "right shoulder yaw", 25: "right elbow", 26: "right wrist roll",
-        12: "waist yaw", 13: "waist roll",
+        12: "waist roll", 13: "waist yaw", 29: "head pitch", 30: "head yaw",
     }
     for i, q in enumerate(angles):
         label = names.get(i, "")
@@ -184,7 +203,7 @@ def run(arm: Arm, args) -> int:
         return 1
 
     period = 1.0 / CONTROL_HZ
-    held = hold_map(arm, RIGHT_ARM + LEFT_ARM)
+    held = hold_map(arm, ARM_SDK_JOINTS)
     start = angles[joint]
 
     print(f"\n  joint {joint} currently at {deg(start):+.2f} deg")
@@ -293,6 +312,10 @@ def main() -> int:
 
     if not (args.joints or args.check or args.engage or args.move):
         ap.print_help()
+        return 1
+    if args.joint not in ARM_SDK_JOINTS:
+        print(f"error: --joint must be one of the arm_sdk joints {ARM_SDK_JOINTS}",
+              file=sys.stderr)
         return 1
     if abs(args.degrees) > MAX_DEGREES:
         print(f"error: --degrees capped at +/-{MAX_DEGREES}", file=sys.stderr)

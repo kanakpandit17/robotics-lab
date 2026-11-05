@@ -2,22 +2,24 @@
 """Ask the R1 which motion mode owns the joints, and optionally release it.
 
     python r1_mode.py                 # READ ONLY: report current mode
-    python r1_mode.py --release       # hand the arms over to arm_sdk
+    python r1_mode.py --release       # switch the built-in controller off
     python r1_mode.py --select ai     # put a named mode back in charge
 
-Why this exists
----------------
-arm_sdk frames are being accepted (mode_machine matches, motors enabled, CRC
-valid) yet joint 22 drifts exactly 0.00 deg. A perfect zero is the signature of
-commands being discarded, not of weak tracking -- something upstream still owns
-the arm.
-
+What release does
+-----------------
 On Unitree humanoids the motion_switcher decides which controller owns the
-joints. While a built-in mode (ai / normal / sport) is active it holds them and
-external low-level commands are ignored. Releasing it is what frees the arms.
+joints. ReleaseMode switches the robot's own controller off: every joint goes
+limp, the legs included, and the remote no longer controls the robot. A
+standing robot falls. Release only with the robot lying flat on a mat or
+otherwise supported, never standing and never hanging on a hoist alone
+(TELEOP.md). Restore with --select ai.
 
-After --release the robot's own controller is no longer holding the arms, so
-they may go limp until arm_sdk engages. Support the robot before running it.
+When it is needed
+-----------------
+Only for rt/lowcmd, which the arm teleop drives (TELEOP.md). Not for the
+camera: quest_stream.py reads RTSP and works in AI mode. Not for rt/arm_sdk:
+the R1 blends arm_sdk commands by the weight in mode_pr while its own
+controller keeps balancing (r1_arm.py).
 """
 
 from __future__ import annotations
@@ -44,7 +46,7 @@ CODES = {
 
 
 def describe(code: int) -> str:
-    return CODES.get(code, f"error {code}")
+    return CODES.get(code, f"error {code} (not in the SDK's table)")
 
 
 def main() -> int:
@@ -52,7 +54,8 @@ def main() -> int:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--iface", default="auto")
     ap.add_argument("--release", action="store_true",
-                    help="release the current mode so arm_sdk can take the arms")
+                    help="switch the built-in controller off: every joint goes "
+                         "limp. Robot lying on a mat or supported only")
     ap.add_argument("--select", metavar="NAME",
                     help="select a mode by name (e.g. ai, normal)")
     ap.add_argument("--settle", type=float, default=3.0)
@@ -84,10 +87,11 @@ def main() -> int:
     form = (data or {}).get("form", "")
     if name:
         print(f"\n  A mode named '{name}' (form '{form}') currently owns the joints.")
-        print("  While it is active, arm_sdk commands are ignored.")
+        print("  While it is active, rt/lowcmd commands are ignored; rt/arm_sdk")
+        print("  is blended in by its weight (mode_pr).")
     else:
-        print("\n  No mode is active -- the joints should already be free.")
-        print("  If arm_sdk still does nothing, the problem is elsewhere.")
+        print("\n  No mode is active: the built-in controller is off and the")
+        print("  joints are limp. Restore with --select ai.")
 
     # ------------------------------------------------------------- act
     if args.select:
@@ -100,14 +104,15 @@ def main() -> int:
         if not name:
             print("\nNothing to release.")
             return 0
-        print("\n  !! Releasing means the robot's own controller stops holding")
-        print("     the arms. Support the robot. Ctrl-C now to abort.")
+        print("\n  !! Release switches the robot's own controller off. Every joint")
+        print("     goes limp, the legs included, and a standing robot falls.")
+        print("     The robot must lie flat on a mat or be otherwise supported.")
         try:
-            for i in (5, 4, 3, 2, 1):
-                print(f"    {i}")
-                time.sleep(1)
-        except KeyboardInterrupt:
-            print("\n  aborted.")
+            answer = input("  Type 'release' to continue, anything else aborts: ")
+        except (EOFError, KeyboardInterrupt):
+            answer = ""
+        if answer.strip() != "release":
+            print("\n  aborted; nothing was sent.")
             return 130
 
         code, _ = client.ReleaseMode()
@@ -118,11 +123,11 @@ def main() -> int:
         time.sleep(2)
         code, data = client.CheckMode()
         print(f"  mode now: {data}")
-        print("\n  Next:  python r1_arm.py --move --degrees -10")
-        print(f"  Restore afterwards with:  python r1_mode.py --select {name}")
+        print(f"\n  Restore afterwards with:  python r1_mode.py --select {name}")
         return 0
 
-    print("\nRead-only. To free the arms:  python r1_mode.py --release")
+    print("\nRead-only. --release switches the built-in controller off;")
+    print("robot lying on a mat or supported only.")
     return 0
 
 
